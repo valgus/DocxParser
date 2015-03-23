@@ -35,7 +35,7 @@ public final class DocxMethods {
     }
 
 
-    public static List<Object> createJaxbNodes (WordprocessingMLPackage template) {
+    public static List<Object> createParagraphJAXBNodes(WordprocessingMLPackage template) {
         final String XPATH_TO_SELECT_TEXT_NODES = "//w:p";
          List<Object> jaxbNodes = null;
         try {
@@ -47,5 +47,19 @@ public final class DocxMethods {
         }
         return jaxbNodes;
     }
+
+    public static List<Object> createTableJAXBNodes(WordprocessingMLPackage template) {
+        final String XPATH_TO_SELECT_TEXT_NODES = "//w:tbl";
+        List<Object> jaxbNodes = null;
+        try {
+            jaxbNodes = template.getMainDocumentPart().getJAXBNodesViaXPath(XPATH_TO_SELECT_TEXT_NODES, true);
+        } catch (JAXBException e) {
+            e.printStackTrace();
+        } catch (XPathBinderAssociationIsPartialException e) {
+            e.printStackTrace();
+        }
+        return jaxbNodes;
+    }
+
 
 }

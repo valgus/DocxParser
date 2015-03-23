@@ -1,6 +1,6 @@
 public class Main {
     public static void main(String[] args) {
-      Comparison comparisonWithTemplate = new Comparison();
+      AlternativeFlow comparisonWithTemplate = new AlternativeFlow();
         comparisonWithTemplate.setTwoDocx("docx/template.docx","docx/document.docx");
         try {
             comparisonWithTemplate.setAppropriateText();

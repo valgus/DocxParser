@@ -3,130 +3,158 @@ import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.wml.*;
+import org.plutext.jaxb.xslfo.TextTransformType;
 
+import javax.xml.bind.JAXBElement;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class DocBase {
 
 
-    public static void setStyle (P p, boolean bold, boolean italic, String align, String fontSize,
-                                 boolean uppercase, String font) {
+    public static void setStyle (P p, String fontSize, String font, String style, String level, String id) {
 
-        List<Object> textes = DocxMethods.getAllElementFromObject(p, Text.class);
-        if (textes.size()==1 & textes.get(0)=="") return;
-        if (p.getPPr().getRPr()==null) {
-            p.getPPr().setRPr(new ParaRPr());
+        String text = getText(p);
+        if (text == null || text == "") return;
+        p.getPPr().setRPr(new ParaRPr());
+
+        if (style != null && !style.isEmpty()) {
+            setStyle(p, style);
         }
-        for (Object text : textes)
-        {
-            if (uppercase) {
 
-               ((Text) text).setValue(((Text) text).getValue().toUpperCase());
-            }
-
-            setBold(p.getPPr(), bold);
-
-
-
-            setItalic(p.getPPr(), italic);
-
-
-            if (fontSize != null && !fontSize.isEmpty()) {
-                setSize(p.getPPr(), fontSize);
-            }
-
-            if (align != null || align != "") {
-                setAlign(p.getPPr(), align.toLowerCase());
-            }
-
-            if (font != null || font != "") {
-                setFont(p.getPPr(), font);
-            }
-
+        if (fontSize != null && !fontSize.isEmpty()) {
+            setSize(p, fontSize);
         }
+
+        if (font != null && font != "") {
+            setFont(p, font);
+        }
+        if (level != null && level != "" && id!= null && id != "") {
+            setLevel(p, level, id);
+        }
+
+
     }
 
-    private static void setAlign (PPr paragraphProperties, String align) {
-        JcEnumeration jcEnumeration = JcEnumeration.fromValue(align);
-        Jc jc = new Jc();
-        jc.setVal(jcEnumeration);
-        paragraphProperties.setJc(jc);
-    }
-
-    private static void setSize(PPr runProperties, String fontSize) {
+    private static void setSize(P p, String fontSize) {
         HpsMeasure size = new HpsMeasure();
         size.setVal(new BigInteger(fontSize));
-        runProperties.getRPr().setSz(size);
-        runProperties.getRPr().setSzCs(size);
+        List<Object> contents = p.getContent();
+        for (Object content : contents) {
+            if (content instanceof PPr) {
+               ((PPr)content).getRPr().setSz(size);
+               ((PPr)content).getRPr().setSzCs(size);
+            }
+            if (content instanceof R) {
+                if (((R)content).getRPr() == null) {((R)content).setRPr(new RPr());}
+                ((R)content).getRPr().setSz(size);
+                ((R)content).getRPr().setSzCs(size);
+            }
+        }
+        try {
+            p.getPPr().getRPr().setSz(size);
+            p.getPPr().getRPr().setSzCs(size);
+        }
+        catch (NullPointerException ex) {}
     }
 
-    public static void setFont (PPr p, String font) {
+    private static void setStyle(P p, String number) {
+        if (number == null) return;
+
+        ObjectFactory factory = Context.getWmlObjectFactory();
+        String text = getText(p);
+        p.getContent().clear();
+        Text t = factory.createText();
+        t.setValue(text);
+        R run = factory.createR();
+        run.getContent().add(t);
+        run.setRPr(factory.createRPr());
+        p.getContent().add(run);
+        PPr pPr = factory.createPPr();
+        ParaRPr rpr = factory.createParaRPr();
+        pPr.setRPr(rpr);
+        p.setPPr(pPr);
+
+        PPrBase.PStyle style = new PPrBase.PStyle();
+        style.setVal(number);
+
+        p.getPPr().setPStyle(style);
+    }
+
+    public static void setText (P p, String text) {
+        if (text == null || text.equals("")) return;
+        List<Object> contents = p.getContent();
+        R first = null;
+        Text t = new Text();
+        t.setValue(text);
+        for (int i = 0; i< contents.size(); i++) {
+            if (contents.get(i) instanceof R) {
+                if (first != null)
+                    contents.remove(i);
+                else
+                    first = (R)contents.get(i);
+            }
+        }
+        if (first!=null) {
+
+            for (Object o : first.getContent()) {
+                if (o instanceof JAXBElement) {
+                try{
+                    if (((JAXBElement) o).getValue() instanceof Text)
+                      ((JAXBElement) o).setValue(t);
+
+                }
+                catch (ClassCastException ex) {}
+                }
+            }
+        }
+        else {
+            first =new R();
+            first.getContent().add(t);
+            p.getContent().add(first);
+        }
+    }
+
+    private static void setFont (P p, String font) {
         RFonts rf = new RFonts();
         rf.setAscii(font);
         rf.setCs(font);
         rf.setHAnsi(font);
         rf.setHint(STHint.DEFAULT);
-        p.getRPr().setRFonts(rf);
-//        List<Object> contents = p.;
-//        for (Object content : contents) {
-//            try{
-//                R r = (R) content;
-//                r.getRPr().setRFonts(rf);
-//            }
-//            catch (ClassCastException ex) {}
-//        }
-    }
+        try {
+            p.getPPr().getRPr().setRFonts(rf);
+        }
+        catch (NullPointerException ex) {
+            p.setPPr(new PPr());
+            p.getPPr().getRPr().setRFonts(rf);
+        }
+        List<Object> contents = p.getContent();
+        for (Object content : contents) {
+            if (content instanceof R) {
+                R r = (R)content;
+                if (r.getRPr() != null)
+                    r.getRPr().setRFonts(rf);
+                else {
+                    r.setRPr(new RPr());
+                    r.getRPr().setRFonts(rf);
+                }
+            }
+        }
 
-    public static void setList (P p, int numID, int ilvl) {
-        ObjectFactory objectFactory = Context.getWmlObjectFactory();
-        PPr ppr = objectFactory.createPPr();
-
-        PPrBase.NumPr numpr = objectFactory.createPPrBaseNumPr();
-        ppr.setNumPr(numpr);
-
-
-        PPrBase.NumPr.Ilvl wilvl = objectFactory.createPPrBaseNumPrIlvl();
-
-        numpr.setIlvl(wilvl);
-
-        wilvl.setVal(BigInteger.valueOf(ilvl));
-
-        PPrBase.NumPr.NumId wnumID = objectFactory.createPPrBaseNumPrNumId();
-
-        numpr.setNumId(wnumID);
-
-        wnumID.setVal(BigInteger.valueOf(numID));
-        PPrBase.PStyle pstyle = objectFactory.createPPrBasePStyle();
-        ppr.setPStyle(pstyle);
-        p.setPPr(ppr);
     }
 
     public static void setSpacing (P p, boolean isTitle) {
         if (p.getPPr()==null) p.setPPr(new PPr());
         PPrBase.Spacing spacing = new PPrBase.Spacing();
         spacing.setLine( new BigInteger((isTitle==true)?"480":"360"));
-        //   spacing.setLineRule(STLineSpacingRule.AUTO);
         try {
             p.getPPr().setSpacing(spacing);
         }
         catch ( NullPointerException ex) {
             System.out.println("ups..");}
-    }
-
-
-    private static void setBold(PPr runProperties, boolean bold) {
-        BooleanDefaultTrue b = new BooleanDefaultTrue();
-        b.setVal(bold);
-        runProperties.getRPr().setB(b);
-    }
-
-    private static void setItalic(PPr runProperties, boolean italic) {
-        BooleanDefaultTrue i = new BooleanDefaultTrue();
-        i.setVal(italic);
-        runProperties.getRPr().setI(i);
     }
 
     public static P addParagraph(MainDocumentPart mdp, String simpleText, int index) {
@@ -150,11 +178,25 @@ public final class DocBase {
     }
 
     public static void setHighlight (P p, String color) {
+        List<Object> contents = p.getContent();
+
+        if (color == null) {
+            if (p.getPPr() != null && p.getPPr().getRPr() != null)
+                p.getPPr().getRPr().setHighlight(null);
+            for (Object content : contents) {
+                try{
+                    R r = (R) content;
+                    if (r.getRPr() != null)
+                      r.getRPr().setHighlight(null);
+            }
+                catch (ClassCastException ex) {}
+            return;
+
+           }
+        }
         Highlight highlight = new Highlight();
         highlight.setVal(color);
         p.getPPr().getRPr().setHighlight(highlight);
-
-        List<Object> contents = p.getContent();
         for (Object content : contents) {
             try{
             R r = (R) content;
@@ -162,11 +204,49 @@ public final class DocBase {
             }
             catch (ClassCastException ex) {}
         }
+
     }
 
+    private static void setLevel (P p, String level, String id ) {
+        if (level == null || level.equals("-1")) return;
+        if (id == null || id.equals("-1")) return;
+        PPrBase.NumPr numPr = new PPrBase.NumPr();
+        PPrBase.NumPr.Ilvl ilvl = new PPrBase.NumPr.Ilvl();
+        ilvl.setVal(new BigInteger(level));
+        numPr.setIlvl(ilvl);
+        PPrBase.NumPr.NumId numID = new PPrBase.NumPr.NumId();
+        numID.setVal(new BigInteger(id));
+        numPr.setNumId(numID);
+        try {
+            p.getPPr().setNumPr(numPr);
+        }
+        catch (NullPointerException ex) {
+            p.setPPr(new PPr());
+            p.getPPr().setNumPr(numPr);
+        }
+    }
 
+    public static void setList (P p) {
+        ObjectFactory wmlObjectFactory = new org.docx4j.wml.ObjectFactory();
+        PPrBase.NumPr pprbasenumpr = wmlObjectFactory.createPPrBaseNumPr();
+        p.getPPr().setNumPr(pprbasenumpr);
+        PPrBase.NumPr.Ilvl pprbasenumprilvl = wmlObjectFactory.createPPrBaseNumPrIlvl();
+        pprbasenumpr.setIlvl(pprbasenumprilvl);
+        pprbasenumprilvl.setVal( BigInteger.valueOf( 1) );
+        PPrBase.NumPr.NumId pprbasenumprnumid = wmlObjectFactory.createPPrBaseNumPrNumId();
+        pprbasenumpr.setNumId(pprbasenumprnumid);
+        pprbasenumprnumid.setVal( BigInteger.valueOf( 22) );
+        PPrBase.PStyle pprbasepstyle = wmlObjectFactory.createPPrBasePStyle();
+        p.getPPr().setPStyle(pprbasepstyle);
+        pprbasepstyle.setVal( "ListParagraph");
+    }
 
-
+    private static String getStyle(P p) {
+        try{
+            return p.getPPr().getPStyle().getVal();
+        }
+        catch (NullPointerException ex) {return null;}
+    }
 
 
     public static String getHighlight (P p) {
@@ -177,30 +257,7 @@ public final class DocBase {
 
     }
 
-
-    public static String getSize(P p) {
-        String i=null;
-        List<Object> contents = p.getContent();
-        for (Object content : contents) {
-            if (content instanceof R) {
-                try{
-                i= ((R)content).getRPr().getSz().getVal().toString();
-                    return i;
-                }
-                catch (NullPointerException ex) {i = null;}
-            }
-        }
-        if (i == null) {
-            try{
-                i= p.getPPr().getRPr().getSzCs().getVal().toString();
-                return i;
-            }
-            catch (NullPointerException ex) {i = null;}
-        }
-        return "28";
-    }
-
-    public static String getFont (P p) {
+    private static String getFont (P p) {
 
         List<Object> contents = p.getContent();
         for (Object content : contents) {
@@ -239,63 +296,18 @@ public final class DocBase {
         return name.toString();
     }
 
-    public static String getAlign (P p) {
-        List<Object> contents = p.getContent();
-        for (Object content : contents) {
-            if (content instanceof R) {
-                try {
-                    return ((P)((R)content).getParent()).getPPr().getJc().getVal().toString();
-                }
-                catch (NullPointerException ex) {return "left";}
-            }
-        }
-        return "left";
-    }
-
     private static boolean isUpperCase(P p) {
         return DocBase.getText(p)==DocBase.getText(p).toUpperCase();
     }
 
-    private static boolean isItalic(P p) {
-        List<Object> contents = p.getContent();
-        for (Object content : contents) {
-            if (content instanceof R) {
-                try {
-                    return ((R)content).getRPr().getI().isVal();
-                }
-                catch (NullPointerException ex) {return false;}
-            }
-        }
-        return false;
-    }
-
-    private static boolean isBold(P p) {
-        List<Object> contents = p.getContent();
-        for (Object content : contents) {
-            if (content instanceof R) {
-                try {
-                    return ((R)content).getRPr().getB().isVal();
-                }
-                catch (NullPointerException ex) {return false;}
-            }
-        }
-        return false;
-    }
-
     public static  String getAttributes (P p) {
-
         StringBuffer attributes = new StringBuffer();
-        attributes.append(getSize(p));//0
-        attributes.append(";");
-        attributes.append(getFont(p));//1
-        attributes.append(";");
-        attributes.append(getAlign(p));//2
-        attributes.append(";");
-        attributes.append(isBold(p));//3
-        attributes.append(";");
-        attributes.append(isItalic(p));//4
-        attributes.append(";");
-        attributes.append(isUpperCase(p));//5
+        attributes.append(getStyle(p));//0
+        attributes.append(';');
+        attributes.append(getLevelInList(p));//1
+        attributes.append(';');
+        attributes.append(getNumIDInList(p));//2
+        attributes.append(';');
         return attributes.toString();
     }
 
@@ -311,7 +323,7 @@ public final class DocBase {
         try {
             word = DocxMethods.getTemplate("docx/document.docx");
             addParagraph(word.getMainDocumentPart(), "123 run me", 3);
-            List<Object> jaxbNodes = DocxMethods.createJaxbNodes(word);
+            List<Object> jaxbNodes = DocxMethods.createParagraphJAXBNodes(word);
             for (Object jaxbNode : jaxbNodes) {
                 P p = (P) jaxbNode;
                // setFont(p, "Arial");

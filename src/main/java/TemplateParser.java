@@ -1,12 +1,9 @@
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.P;
-import org.docx4j.wml.Text;
 
 import java.io.*;
-import java.math.BigInteger;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class TemplateParser {
 
@@ -38,7 +35,7 @@ public class TemplateParser {
     public static List<Title> getListOfTitles (String name) {
         List<Title> titles = new ArrayList<>();
         setDocument(name);
-        List<Object> jaxbNodes = DocxMethods.createJaxbNodes(template);
+        List<Object> jaxbNodes = DocxMethods.createParagraphJAXBNodes(template);
         for (Object jaxbNode : jaxbNodes) {
             P p = (P)jaxbNode;
             int lvl = DocBase.getLevelInList(p).intValue();
