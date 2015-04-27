@@ -37,7 +37,21 @@ public final class DocxMethods {
 
     public static List<Object> createParagraphJAXBNodes(WordprocessingMLPackage template) {
         final String XPATH_TO_SELECT_TEXT_NODES = "//w:p";
-         List<Object> jaxbNodes = null;
+        List<Object> jaxbNodes = null;
+        try {
+            jaxbNodes = template.getMainDocumentPart().getJAXBNodesViaXPath(XPATH_TO_SELECT_TEXT_NODES, true);
+        } catch (JAXBException e) {
+            e.printStackTrace();
+        } catch (XPathBinderAssociationIsPartialException e) {
+            e.printStackTrace();
+        }
+        return jaxbNodes;
+    }
+
+
+    public static List<Object> createSdtJAXBNodes(WordprocessingMLPackage template) {
+        final String XPATH_TO_SELECT_TEXT_NODES = "//w:sdt";
+        List<Object> jaxbNodes = null;
         try {
             jaxbNodes = template.getMainDocumentPart().getJAXBNodesViaXPath(XPATH_TO_SELECT_TEXT_NODES, true);
         } catch (JAXBException e) {
@@ -59,6 +73,14 @@ public final class DocxMethods {
             e.printStackTrace();
         }
         return jaxbNodes;
+    }
+
+    public static int getIndexOfParagraph (WordprocessingMLPackage wordprocessingMLPackage, P p) {
+        return wordprocessingMLPackage.getMainDocumentPart().getContent().indexOf(p);
+    }
+
+    public static P getParagraphFromIndex (WordprocessingMLPackage wordprocessingMLPackage,int i) {
+        return (P)wordprocessingMLPackage.getMainDocumentPart().getContent().get(i);
     }
 
 

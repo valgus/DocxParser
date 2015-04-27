@@ -1,9 +1,9 @@
+import org.apache.commons.lang.StringUtils;
 import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.wml.*;
-import org.plutext.jaxb.xslfo.TextTransformType;
 
 import javax.xml.bind.JAXBElement;
 import java.io.File;
@@ -14,8 +14,8 @@ import java.util.List;
 
 public final class DocBase {
 
-
-    public static void setStyle (P p, String fontSize, String font, String style, String level, String id) {
+    static ObjectFactory factory = Context.getWmlObjectFactory();
+    public static void setStyle (P p, String fontSize, String font, String style, String level, String id, int space) {
 
         String text = getText(p);
         if (text == null || text == "") return;
@@ -36,7 +36,7 @@ public final class DocBase {
             setLevel(p, level, id);
         }
 
-
+        setSpacing(p, space);
     }
 
     private static void setSize(P p, String fontSize) {
@@ -64,7 +64,6 @@ public final class DocBase {
     private static void setStyle(P p, String number) {
         if (number == null) return;
 
-        ObjectFactory factory = Context.getWmlObjectFactory();
         String text = getText(p);
         p.getContent().clear();
         Text t = factory.createText();
@@ -84,18 +83,21 @@ public final class DocBase {
         p.getPPr().setPStyle(style);
     }
 
-    public static void setText (P p, String text) {
+    public static void setText (P p, String text, boolean remove) {
         if (text == null || text.equals("")) return;
+
         List<Object> contents = p.getContent();
         R first = null;
         Text t = new Text();
         t.setValue(text);
-        for (int i = 0; i< contents.size(); i++) {
-            if (contents.get(i) instanceof R) {
-                if (first != null)
-                    contents.remove(i);
-                else
-                    first = (R)contents.get(i);
+        if (remove) {
+            for (int i = 0; i< contents.size(); i++) {
+                if (contents.get(i) instanceof R) {
+                    if (first != null)
+                        contents.remove(i);
+                    else
+                        first = (R)contents.get(i);
+                }
             }
         }
         if (first!=null) {
@@ -112,9 +114,9 @@ public final class DocBase {
             }
         }
         else {
-            first =new R();
-            first.getContent().add(t);
-            p.getContent().add(first);
+            R r =new R();
+            r.getContent().add(t);
+            p.getContent().add(r);
         }
     }
 
@@ -146,10 +148,10 @@ public final class DocBase {
 
     }
 
-    public static void setSpacing (P p, boolean isTitle) {
+    public static void setSpacing (P p, int space) {
         if (p.getPPr()==null) p.setPPr(new PPr());
         PPrBase.Spacing spacing = new PPrBase.Spacing();
-        spacing.setLine( new BigInteger((isTitle==true)?"480":"360"));
+        spacing.setLine(BigInteger.valueOf(space));
         try {
             p.getPPr().setSpacing(spacing);
         }
@@ -173,7 +175,7 @@ public final class DocBase {
 
         }
         mdp.getContent().add(index, para);
-        DocBase.setSpacing(para, false);
+     //TO DO:   DocBase.setSpacing(para, false);
         return para;
     }
 
@@ -293,7 +295,7 @@ public final class DocBase {
         for (Object word : words) {
             name.append(((Text)word).getValue());
         }
-        return name.toString();
+        return name.toString().trim();
     }
 
     private static boolean isUpperCase(P p) {
@@ -317,6 +319,20 @@ public final class DocBase {
         return splittedString;
     }
 
+    public static List<P> deleteEmptyPara(List<Object> paragraphes) {
+        List<P> result = new ArrayList<>();
+        String s;
+        for (Object o : paragraphes) {
+            P p = (P)o;
+            s = getText(p);
+            s = StringUtils.deleteWhitespace(s);
+            if (!s.equals("")) {
+                result.add(p);
+            }
+        }
+        return result;
+    }
+
 
     public static void main(String[] args) {
         WordprocessingMLPackage word;
@@ -327,7 +343,7 @@ public final class DocBase {
             for (Object jaxbNode : jaxbNodes) {
                 P p = (P) jaxbNode;
                // setFont(p, "Arial");
-                setSpacing(p, true);
+             //TO DO   setSpacing(p, true);
                 System.out.println(getText(p)+getFont(p));
 
                 System.out.println(isUpperCase(p));
@@ -340,4 +356,5 @@ public final class DocBase {
         }
 
     }
+
 }

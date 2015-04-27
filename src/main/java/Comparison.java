@@ -93,12 +93,12 @@ public class Comparison {
             p = paragraph.getKey();
             t = paragraph.getValue();
             if (paragraph.getValue() != null) {
-                DocBase.setSpacing(p, true);
+                DocBase.setSpacing(p, 480);
                 String[] atr = DocBase.getAttributes(t);
                // DocBase.setStyle(p, null, null, null, null, null, null, atr[6]);
             }
             else{
-                DocBase.setSpacing(p, false);
+                DocBase.setSpacing(p, 480);
                if (!DocBase.getText(p).trim().equals("")){}
             //        DocBase.setStyle(p, false, false, "left", "28",false,"Times New Roman", null);
             }

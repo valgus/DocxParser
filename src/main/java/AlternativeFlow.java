@@ -1,5 +1,4 @@
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
-import org.docx4j.wml.NumFmt;
 import org.docx4j.wml.P;
 
 import java.io.File;
@@ -25,7 +24,7 @@ public class AlternativeFlow {
         List<Object> documentParagraphes = DocxMethods.createParagraphJAXBNodes(document);
         Map<Integer, P> corespondences = findCorespondences(document, documentParagraphes, titles);
 
-        if (corespondences.size() == 0) {
+        if (corespondences.size() < 2 ) {
             throw new Exception("Файл не соответствует шаблону!");
         }
         else {
@@ -36,16 +35,15 @@ public class AlternativeFlow {
             if (it.hasNext()) {
                 do{
                     p = (P)it.next();
-                    DocBase.setSpacing(p, true);
                     t = findTitle(titles, p);
                     if (t!=null) {
-                        DocBase.setText(p, t.getName());
+                        DocBase.setText(p, t.getName(), true);
                         String[] atr = DocBase.getAttributes(t);
-                        DocBase.setStyle(p, null, null, atr[0], atr[1], atr[2]);
+                        DocBase.setStyle(p, null, null, atr[0], atr[1], atr[2], 480);
                         DocBase.setHighlight(p, "green");
                     }
                     else {
-                        DocBase.setStyle(p, null, null, "1", null, null);
+                        DocBase.setStyle(p, null, null, "1", null, null, 480);
                         DocBase.setHighlight(p, "green");
                     }
                 } while (it.hasNext());
@@ -53,9 +51,8 @@ public class AlternativeFlow {
         }
         for (Object o : documentParagraphes) {   //setAttributes
             P p = (P) o;
-            DocBase.setSpacing(p, false);
             if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null)
-                DocBase.setStyle(p, "28","Times New Roman", null, null, null);
+                DocBase.setStyle(p, "28","Times New Roman", null, null, null, 360);
         }
 
         changeEnumeration(document, documentParagraphes);
@@ -66,11 +63,19 @@ public class AlternativeFlow {
                 DocBase.setHighlight(p, null);
             }
         }
+        File docx = new File("docx/2.docx") ;
+        document.save(docx);
+        documentParagraphes = DocxMethods.createTableJAXBNodes(DocxMethods.getTemplate(docx.getAbsolutePath()));
+        if (true)
+
+            for (Object o : documentParagraphes){
+             //   SdtBlock sdtBlock = (SdtBlock) o;
+                System.out.println(o);
+
+            }
+        }
 
 
-        document.save(new File("docx/2.docx"));
-
-    }
 
     private Map<Integer, P> findCorespondences(WordprocessingMLPackage wordprocessingMLPackage,List<Object> document, List<Title> titles) {
         Map<Integer, P> check = new TreeMap<>();
@@ -78,7 +83,7 @@ public class AlternativeFlow {
         for (int i = 0; i< titles.size(); i++) {
             P p = findP(document, titles.get(i).getName());
             if (p != null) {
-                check.put(getIndexOfParagraph(wordprocessingMLPackage, p), p);
+                check.put(DocxMethods.getIndexOfParagraph(wordprocessingMLPackage, p), p);
             }
         }
         return check;
@@ -99,13 +104,7 @@ public class AlternativeFlow {
         return paragraph;
     }
 
-    private int getIndexOfParagraph (WordprocessingMLPackage wordprocessingMLPackage, P p) {
-        return wordprocessingMLPackage.getMainDocumentPart().getContent().indexOf(p);
-    }
 
-    private P getParagraphFromIndex (WordprocessingMLPackage wordprocessingMLPackage,int i) {
-        return (P)wordprocessingMLPackage.getMainDocumentPart().getContent().get(i);
-    }
 
     private Title findTitle (List<Title> t, P p) {
         String name = DocBase.getText(p).toLowerCase();
@@ -120,19 +119,15 @@ public class AlternativeFlow {
     private void changeEnumeration (WordprocessingMLPackage document,List<Object> documentParagraphes)
     {
         ArrayList<Integer> indexes = new ArrayList<>();
-        int number = 0;
         BigInteger not  = new BigInteger("-1");
         for (Object o : documentParagraphes) {
             P p = (P) o;
-            DocBase.setSpacing(p, false);
             if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null) {
                 if (!DocBase.getLevelInList(p).equals(not) ) {
 
-                    int i = getIndexOfParagraph(document, p);
+                    int i = DocxMethods.getIndexOfParagraph(document, p);
                     if (indexes.size()== 0)
-                        number++;
                     if (indexes.size()!= 0 && (indexes.get(indexes.size()-1) +1 != i))
-                        number++;
                     indexes.add(i);
                 }
             }
@@ -141,7 +136,7 @@ public class AlternativeFlow {
 
         int previous = indexes.get(0)-1;
         for (Integer index : indexes) {
-            P p = getParagraphFromIndex(document, index);
+            P p = DocxMethods.getParagraphFromIndex(document, index);
             if (previous != index -1) {
                 id = String.valueOf(Integer.decode(id)+1);
             }

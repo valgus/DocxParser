@@ -1,6 +1,3 @@
-import java.util.LinkedList;
-import java.util.List;
-
 public class Title {
 
     private final int lvl;
