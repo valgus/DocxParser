@@ -35,8 +35,8 @@ public final class DocBase {
         if (level != null && level != "" && id!= null && id != "") {
             setLevel(p, level, id);
         }
-
-        setSpacing(p, space);
+        if (space != 0)
+            setSpacing(p, space);
     }
 
     private static void setSize(P p, String fontSize) {
@@ -291,7 +291,7 @@ public final class DocBase {
 
     public static String getText (P p) {
         List<Object> words = DocxMethods.getAllElementFromObject(p, Text.class);
-        StringBuffer name = new StringBuffer("");
+        StringBuilder name = new StringBuilder("");
         for (Object word : words) {
             name.append(((Text)word).getValue());
         }
@@ -333,7 +333,14 @@ public final class DocBase {
         return result;
     }
 
-
+    public static JcEnumeration getAlign (P p) {
+        try {
+            return p.getPPr().getJc().getVal();
+        }
+        catch (NullPointerException ex) {
+            return null;
+        }
+    }
     public static void main(String[] args) {
         WordprocessingMLPackage word;
         try {
@@ -355,6 +362,17 @@ public final class DocBase {
             e.printStackTrace();
         }
 
+    }
+
+    public static List<String> changeToString (List<P> para) {
+        List<String> strings = new ArrayList<>();
+        String s;
+        for (P p : para) {
+            s = getText(p);
+            if (!s.trim().isEmpty())
+                strings.add(s);
+        }
+        return  strings;
     }
 
 }

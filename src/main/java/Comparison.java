@@ -3,6 +3,8 @@ import org.docx4j.wml.P;
 import java.io.File;
 import java.util.*;
 
+
+//Deprecated
 public class Comparison {
 
     File template, compared;
