@@ -1,3 +1,5 @@
+package Model;
+
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.*;
@@ -10,29 +12,40 @@ import java.util.regex.Pattern;
 
 public class Attempt {
 
-    List<P> firstPage;
-    int GOSTnumber;
+
+    private List<P> firstPage;
+    private int GOSTnumber;
     boolean isFirstpage;
-    int index;
-    String name;
-    List<Integer> indexName;
-    String type;
-    int typeIndex;
-    String agreement;
-    int[] agreementIndexes;
-    int approveIndex;
-    String approve;
-    String nameOfCompany;
-    int docNumberIndex;
-    String docNumber;
-    String pageNumber;
-    int pageNumberIndex;
-    String medium;
-    String subName;
-    List<P> remained;
+    private int index;
+    private String name;
+    private List<Integer> indexName;
+    private String type;
+    private int typeIndex;
+    private String agreement;
+    private int[] agreementIndexes;
+    private int approveIndex;
+    private String approve;
+    private String nameOfCompany;
+    private int docNumberIndex;
+    private String docNumber;
+    private String albom;
+    private  String pageNumber;
+    private int pageNumberIndex;
+    private String medium;
+    private String subName;
+    private List<P> remained;
+
 
     public Attempt (List<P> firstPage, String type, int GOSTnumber, String name) {
         this.firstPage = new ArrayList<>(firstPage);
+        this.remained = new ArrayList<>();
+        docNumber = "";
+        medium = "";
+        subName = "";
+        albom = "";
+        pageNumber = "";
+        approve = "";
+        agreement = "";
         isFirstpage = false;
         index = -1;
         typeIndex = -1;
@@ -63,18 +76,23 @@ public class Attempt {
             throw new Exception("The inserted name is not correct");
         findType();
         findAgreementsAndApprove();
-        if (agreementIndexes[0] != -1 && agreementIndexes[0] != 0) {
+        if (agreementIndexes[0] != -1) {
             findNameOfCompany();
             setSubscribes();
         }
         setDocNumber();
+        setAlbom();
         setPageNumber();
         setSubNameAndMedium();
         setRemained();
     }
 
 
+
+
     private double ngrammPossibility (String actual, String checked) {
+        if (actual.length() < 2)
+            return 0;
         String[] actualGramm  = new String[actual.length() - 2];
         String[] checkedGramm  = new String[checked.length() - 2];
         int index = 0;
@@ -174,24 +192,44 @@ public class Attempt {
     }
 
     private void setSubscribes () {
+        String s;
         int lastIndex = (approveIndex == -1) ? indexName.get(0) : approveIndex;
         StringBuffer res = new StringBuffer();
         for (int i = agreementIndexes[0]; i < lastIndex; i++ )  {
-           res.append(DocBase.getText(firstPage.get(i)));
-           res.append(" \r\n ");
+            s = DocBase.getText(firstPage.get(i));
+            if (s.toLowerCase().contains("согласовано") || ngrammPossibility("согласовано", s) >=0.5)
+                s = "СОГЛАСОВАНО";
+            res.append(s);
+           res.append(" \n ");
         }
         agreement = res.toString();
         if (approveIndex != -1) {
             lastIndex = indexName.get(0);
             res = new StringBuffer();
             for (int i = approveIndex; i < lastIndex; i++ )  {
-                res.append(DocBase.getText(firstPage.get(i)));
-                res.append(" \r\n ");
+                s = DocBase.getText(firstPage.get(i));
+                if (s.toLowerCase().contains("утверждаю")|| ngrammPossibility("утверждаю", s) >=0.5)
+                    s = "УТВЕРЖДАЮ";
+                res.append(s);
+                res.append("\n");
             }
             approve = res.toString();
         }
     }
-
+    private void setAlbom() {
+        String s;
+        for (int i = 0; i < firstPage.size(); i++ ) {
+            s = DocBase.getText(firstPage.get(i));
+            if (s.toLowerCase().contains("альбом")){
+                albom = s;
+                if (DocBase.getText(firstPage.get(i + 1)).toLowerCase().contains("всего альбомов")){
+                    albom += " \n ";
+                    albom += DocBase.getText(firstPage.get(i + 1));
+                }
+                return;
+            }
+        }
+    }
 
     private void setDocNumber () {
         String regDocNumber = (GOSTnumber == 19)? "[А-ЯA-Z]+.\\d+.\\d+-\\d{2}.( ){1}\\d{2}-?\\d*-(ЛУ){1}" :
@@ -207,6 +245,11 @@ public class Attempt {
                 return;
             }
             else {
+                if (s.toLowerCase().contains("-лу")){
+                    docNumber = s + "{wrong}";
+                    docNumberIndex = i;
+                    return;
+                }
                 temp = s.split("\\.");
                 if (isDocNumberCorrect(temp)) {
                     docNumber = s + "{wrong}";
@@ -219,10 +262,10 @@ public class Attempt {
     }
 
     private boolean isDocNumberCorrect (String[] strings) {
-        Pattern p1 = Pattern.compile("[0-9-]+");
+        Pattern p1 = Pattern.compile("[0-9-]{3,}");
         double coincedence = 0.0;
         for (String string : strings) {
-            if (p1.matcher(string).matches())
+            if (p1.matcher(string).matches() || string.toLowerCase().contains("лу"))
                 coincedence++;
         }
         return (coincedence/strings.length >= 0.5)? true :false;
@@ -232,25 +275,35 @@ public class Attempt {
         String s;
         for (int i = 0; i < firstPage.size(); i++) {
             s = DocBase.getText(firstPage.get(i));
-            if (s.toLowerCase().contains("листов") || s.toLowerCase().contains("лист")) {
-                pageNumber = s;
+            if (s.toLowerCase().contains("листов 1") || s.toLowerCase().contains("лист 1")) {
                 pageNumberIndex = i;
                 return;
             }
+            if (s.toLowerCase().contains("листов") || s.toLowerCase().contains("лист")) {
+                if (s.toLowerCase().replace("листов", "").matches("[0-9 ]+") ||
+                        s.toLowerCase().replace("лист", "").matches("[0-9 ]+")) {
+                    pageNumber = s;
+                    pageNumberIndex = i;
+                    return;
+                }
+            }
+
         }
     }
 
     private void setSubNameAndMedium () {
         String s;
-        if (typeIndex - indexName.get(indexName.size() - 1) > 1) {
-            for (int i = indexName.get(indexName.size() - 1); i < typeIndex; i++ ) {
+        if (typeIndex != -1 && indexName.size() != 0 &
+                typeIndex - indexName.get(indexName.size() - 1) > 1) {
+            for (int i = indexName.get(indexName.size()); i < typeIndex; i++ ) {
                 s = DocBase.getText(firstPage.get(i));
                 if (s.matches("[А-Яа-яA-Za-z]+[ ]?[А-Яа-яA-Za-z ]+"))
                     subName = s;
             }
         }
-        if (pageNumberIndex - docNumberIndex > 1) {
-            for (int i = docNumberIndex; i < typeIndex; i++ ) {
+        if (pageNumberIndex!= -1 && docNumberIndex!= -1 &
+                pageNumberIndex - docNumberIndex > 1) {
+            for (int i = docNumberIndex + 1; i < pageNumberIndex; i++ ) {
                 s = DocBase.getText(firstPage.get(i));
                 if (s.matches("[А-Яа-яA-Za-z]+[ ]?[А-Яа-яA-Za-z ]+"))
                     medium = s;
@@ -259,11 +312,17 @@ public class Attempt {
     }
 
     private void setRemained () {
+        if (firstPage.size() - 1 == pageNumberIndex|| firstPage.size() - 1 == docNumberIndex ||
+                firstPage.size() - 1 == index)
+            return;
         remained = new ArrayList<>();
         int start = (agreementIndexes[1] == -1 ) ?
                 (pageNumberIndex == -1) ?
                         (docNumberIndex == -1) ?
-                                index +1 : docNumberIndex +1 : pageNumberIndex + 2 : agreementIndexes[1] +1;
+                                index +1 :
+                                docNumberIndex +1 :
+                        pageNumberIndex + 1 :
+                agreementIndexes[1] +1;
         remained.addAll(firstPage.subList(start, firstPage.size() - 1));
 
     }
@@ -305,6 +364,10 @@ public class Attempt {
 
     public boolean isSetType () {
         return !(typeIndex == -1);
+    }
+
+    public String getAlbom() {
+        return albom;
     }
 
 }

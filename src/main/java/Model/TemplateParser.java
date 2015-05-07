@@ -1,3 +1,8 @@
+package Model;
+
+import Model.DocBase;
+import Model.DocxMethods;
+import Model.Title;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.P;

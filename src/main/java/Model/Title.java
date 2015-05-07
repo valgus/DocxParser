@@ -1,3 +1,5 @@
+package Model;
+
 public class Title {
 
     private final int lvl;

@@ -1,16 +1,24 @@
+package Model;
+
+import Model.DocBase;
+import Model.DocxMethods;
+import Model.TemplateParser;
+import Model.Title;
 import org.docx4j.jaxb.Context;
-import org.docx4j.model.listnumbering.ListLevel;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.parts.Part;
+import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.*;
 
+import javax.print.Doc;
 import javax.xml.bind.JAXBElement;
 import javax.xml.namespace.QName;
 import java.io.File;
 import java.math.BigInteger;
 import java.util.*;
 
-public class TableOfContentsAdd {
+public class MainPart {
 
     File template, compared;
     boolean exist = false;
@@ -23,9 +31,14 @@ public class TableOfContentsAdd {
         exist = true;
     }
 
-    public void setAppropriateText() throws Exception {
+    public WordprocessingMLPackage setAppropriateText() throws Exception {
+        WordprocessingMLPackage document  = DocxMethods.getTemplate(compared.getAbsolutePath());
         if (!exist) throw new Exception();
-        WordprocessingMLPackage document = DocxMethods.getTemplate(compared.getAbsolutePath());
+        Part stylesPart = new org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart();
+        ((org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart) stylesPart)
+                    .unmarshalDefaultStyles();
+       // document.addTargetPart(stylesPart);
+
 //        List<Object> contents = document.getMainDocumentPart().getContent().subList(
 //                0, 43);
 //        document.getMainDocumentPart().getContent().removeAll(contents);
@@ -44,16 +57,16 @@ public class TableOfContentsAdd {
             if (it.hasNext()) {
                 do{
                     p = (P)it.next();
-                    DocBase.setSpacing(p, 360);
+                  //  DocBase.setSpacing(p, 360);
                     t = findTitle(titles, p);
                     if (t!=null) {
                         DocBase.setText(p, t.getName(), true);
                         String[] atr = DocBase.getAttributes(t);
-                        DocBase.setStyle(p, null, null, atr[0], atr[1], atr[2], 0);
+                        DocBase.setStyle(p, null, null, null, atr[1], atr[2], 0, "CENTER", true);
                         DocBase.setHighlight(p, "green");
                     }
                     else {
-                        DocBase.setStyle(p, null, null, "1", null, null, 0);
+                        DocBase.setStyle(p, null, null, null, null, null, 0, "CENTER", true);
                         DocBase.setHighlight(p, "green");
                     }
 
@@ -62,13 +75,13 @@ public class TableOfContentsAdd {
         }
         for (Object o : documentParagraphes) {   //setAttributes
             P p = (P) o;
-            DocBase.setSpacing(p, 240);
+   //         DocBase.setSpacing(p, 240);
             if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null)
-                DocBase.setStyle(p, "28","Times New Roman", null, null, null, 0);
+                DocBase.setStyle(p, "28","Times New Roman", null, null, null, 0, "BOTH", false);
         }
 
-        changeEnumeration(document, documentParagraphes);
-
+//        changeEnumeration(document, documentParagraphes);
+//
         for (Object o : documentParagraphes) {
             P p = (P) o;
             if (DocBase.getHighlight(p)!=null) {
@@ -98,8 +111,9 @@ public class TableOfContentsAdd {
         R r2 = factory.createR();
         r2.getContent().add(getWrappedFldChar(fldcharend));
         paragraphForTOC.getContent().add(r2);
-        document.getMainDocumentPart().getContent().add(0, paragraphForTOC);
-        document.save(new File("docx/2.docx"));
+        document.getMainDocumentPart().getContent().add(0,  paragraphForTOC);
+
+        return document;
 
     }
 

@@ -1,3 +1,5 @@
+package Model;
+
 import org.apache.commons.lang.StringUtils;
 import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
@@ -15,15 +17,14 @@ import java.util.List;
 public final class DocBase {
 
     static ObjectFactory factory = Context.getWmlObjectFactory();
-    public static void setStyle (P p, String fontSize, String font, String style, String level, String id, int space) {
+    public static void setStyle (P p, String fontSize, String font, String style, String level, String id, int space, String align,
+                                 boolean setBold) {
 
         String text = getText(p);
         if (text == null || text == "") return;
+        if (p.getPPr() == null)
+            p.setPPr(factory.createPPr());
         p.getPPr().setRPr(new ParaRPr());
-
-        if (style != null && !style.isEmpty()) {
-            setStyle(p, style);
-        }
 
         if (fontSize != null && !fontSize.isEmpty()) {
             setSize(p, fontSize);
@@ -37,8 +38,40 @@ public final class DocBase {
         }
         if (space != 0)
             setSpacing(p, space);
+        if (align != null) {
+            setAlign(p, align);
+        }
+
+        if (setBold) {
+            setBold(p, true);
+        }
+        if (style != null && !style.isEmpty()) {
+            setStyle(p, style);
+        }
+
     }
 
+    public static void setBold(P p, boolean set) {
+        if (set) {
+            BooleanDefaultTrue f = new BooleanDefaultTrue();
+            f.setVal(true);
+            if (p.getPPr() == null)
+                p.setPPr(factory.createPPr());
+            if (p.getPPr().getRPr() == null)
+                p.getPPr().setRPr(factory.createParaRPr());
+
+            p.getPPr().getRPr().setB(f);
+            List<Object> contents = p.getContent();
+            for (Object o : contents) {
+                if (o instanceof R) {
+                    if (((R) o).getRPr() == null)
+                        ((R) o).setRPr(factory.createRPr());
+                    ((R) o).getRPr().setB(f);
+                }
+
+            }
+        }
+    }
     private static void setSize(P p, String fontSize) {
         HpsMeasure size = new HpsMeasure();
         size.setVal(new BigInteger(fontSize));
@@ -198,10 +231,16 @@ public final class DocBase {
         }
         Highlight highlight = new Highlight();
         highlight.setVal(color);
+        if (p.getPPr() == null)
+            p.setPPr(factory.createPPr());
+        if (p.getPPr().getRPr() == null)
+            p.getPPr().setRPr(factory.createParaRPr());
         p.getPPr().getRPr().setHighlight(highlight);
         for (Object content : contents) {
             try{
             R r = (R) content;
+            if (r.getRPr() == null)
+                r.setRPr(factory.createRPr());
             r.getRPr().setHighlight(highlight);
             }
             catch (ClassCastException ex) {}
@@ -241,6 +280,21 @@ public final class DocBase {
         PPrBase.PStyle pprbasepstyle = wmlObjectFactory.createPPrBasePStyle();
         p.getPPr().setPStyle(pprbasepstyle);
         pprbasepstyle.setVal( "ListParagraph");
+    }
+
+    public static void setAlign (P p, String align) {
+        if (p.getPPr() == null)
+            p.setPPr(factory.createPPr());
+        if (align != null) {
+            Jc jc = factory.createJc();
+            switch (align) {
+                case ("RIGHT"): jc.setVal(JcEnumeration.RIGHT);break;
+                case ("LEFT"): jc.setVal(JcEnumeration.LEFT);break;
+                case ("CENTER"): jc.setVal(JcEnumeration.CENTER);break;
+                case ("BOTH"): jc.setVal(JcEnumeration.BOTH);break;
+            }
+            p.getPPr().setJc(jc);
+        }
     }
 
     private static String getStyle(P p) {
@@ -373,6 +427,17 @@ public final class DocBase {
                 strings.add(s);
         }
         return  strings;
+    }
+
+    public static P setRightP (P p, String s) {
+        if (s==null)
+            return p;
+        String[] temp = s.split("\n");
+        for (int i = 0; i < temp.length; i++) {
+            setText(p, temp[i], false);
+            if (i!= temp.length - 1) p.getContent().add(factory.createBr());
+        }
+        return p;
     }
 
 }
