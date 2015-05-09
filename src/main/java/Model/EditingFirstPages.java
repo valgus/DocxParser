@@ -4,6 +4,8 @@ import org.docx4j.convert.out.common.preprocess.CoverPageSectPrMover;
 import org.docx4j.convert.out.common.preprocess.ParagraphStylesInTableFix;
 import org.docx4j.dml.wordprocessingDrawing.Inline;
 import org.docx4j.jaxb.Context;
+import org.docx4j.model.structure.PageDimensions;
+import org.docx4j.model.table.TblFactory;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
@@ -23,7 +25,6 @@ public class EditingFirstPages {
     private    WordprocessingMLPackage doc;
     private  ObjectFactory factory;
     private int numGOST;
-    private WordprocessingMLPackage newDoc;
     String type;
     //------------------------------
     private  String year   ;  // год выпуска
@@ -42,7 +43,7 @@ public class EditingFirstPages {
     private  List<P> remained;
     private  int bound = -1;
     //------------------------------
-
+    private int pageWidth = new PageDimensions().getWritableWidthTwips();
 
 
     public WordprocessingMLPackage processDoc () throws Exception {
@@ -68,7 +69,7 @@ public class EditingFirstPages {
                     break;
             }
             if (yearIndex!=-1 && i - yearIndex > 10 ||
-                letterIndex!=-1 && i - letterIndex > 10)
+                    letterIndex!=-1 && i - letterIndex > 10)
                 break;
         }
         if (year == null && letter == null)
@@ -100,9 +101,9 @@ public class EditingFirstPages {
         if (!checkForRIGHTAlign()) {
             findInTableParagraphs();
         }
-        setFirstPage();
+
         int year2Index = -1;
-        int temp = (yearIndex != -1) ? yearIndex : letterIndex;
+        int temp = ((yearIndex != -1) ? yearIndex : letterIndex) + 1;
         for (int i = temp; i < ((4*temp <docPara.size())?4*temp:docPara.size()); i++) {
             s = DocBase.getText(docPara.get(i));
             if (s.equals(year)) {
@@ -110,66 +111,73 @@ public class EditingFirstPages {
                 break;
             }
         }
-     //   setSecondPage();
-//        if (year2Index!= -1) {
-//            int i = DocxMethods.getIndexOfParagraph(doc.getMainDocumentPart(), docPara.get(year2Index));
-//            newDoc.getMainDocumentPart().getContent().addAll(doc.getMainDocumentPart().getContent().subList(i+1,
-//                    doc.getMainDocumentPart().getContent().size()-1));
-//        }
-//        else {
-//            int i = DocxMethods.getIndexOfParagraph(doc.getMainDocumentPart(), docPara.get(temp));
-//            newDoc.getMainDocumentPart().getContent().addAll(doc.getMainDocumentPart().getContent().subList(
-//                    (i!=-1)?i+1:0, doc.getMainDocumentPart().getContent().size()-1));
-//        }
+        int indexToFind = (year2Index == -1)? temp+1 : year2Index;
+        Object o = DocxMethods.getParagraphFromIndex(doc.getMainDocumentPart(), indexToFind);
+        int toIndex = 0;
+        for (int i = 0; i<  doc.getMainDocumentPart().getContent().size(); i++) {
+            List<Object> contents = DocxMethods.getAllElementFromObject(doc.getMainDocumentPart().getContent()
+                    .get(i), P.class);
+            if (contents.contains(o) && DocxMethods.getIndexOfParagraph(doc.getMainDocumentPart(),(P)o) == indexToFind ) {
+                toIndex = i;
+                break;
+            }
+        }
+        for (int i = 0; i<= toIndex + 1; i++) {
+            doc.getMainDocumentPart().getContent().remove(doc.getMainDocumentPart().getContent().get(0));
+        }
+        while (true) {
+            if (doc.getMainDocumentPart().getContent().get(0) instanceof P) {
+                s = DocBase.getText((P)doc.getMainDocumentPart().getContent().get(0));
+                if (s.isEmpty() || s.matches("[ ]*")) {
+                    doc.getMainDocumentPart().getContent().remove(doc.getMainDocumentPart().getContent().get(0));
+                }
+                else
+                    break;
+            }
+            else
+                break;
+        }
+        setFirstPage();
+        setSecondPage();
         //TODO calculate number of pages
-        newDoc.getMainDocumentPart().addParagraphOfText("ghbdtn");
-        CoverPageSectPrMover.process(newDoc);
-        ParagraphStylesInTableFix.process(newDoc);
-        return newDoc;
+
+        System.out.println(doc.getMainDocumentPart().getContent().size());
+
+        return doc;
     }
 
     public EditingFirstPages(WordprocessingMLPackage doc, String typeOfDoc, int numGOST, String name){
-       factory = Context.getWmlObjectFactory();
-       this.doc = doc;
-       this.type = typeOfDoc;
-       this.numGOST = numGOST;
-       this.name = name;
-        try {
-            newDoc = WordprocessingMLPackage.createPackage();
-            Styles styles = (Styles)newDoc.getMainDocumentPart().getStyleDefinitionsPart().unmarshalDefaultStyles();
-            StyleDefinitionsPart styleDefinitionsPart = new StyleDefinitionsPart();
-            styleDefinitionsPart.setPackage(newDoc);
-            styleDefinitionsPart.setJaxbElement(styles);
-            newDoc.getMainDocumentPart().addTargetPart(styleDefinitionsPart);
-        } catch (InvalidFormatException ex) {
-            ex.printStackTrace();
-        } catch (JAXBException e) {
-            e.printStackTrace();
-        }
+        factory = Context.getWmlObjectFactory();
+        this.doc = doc;
+        this.type = typeOfDoc;
+        this.numGOST = numGOST;
+        this.name = name;
+//        try {
+////            newDoc = WordprocessingMLPackage.createPackage();
+////            Styles styles = (Styles)newDoc.getMainDocumentPart().getStyleDefinitionsPart().unmarshalDefaultStyles();
+////            StyleDefinitionsPart styleDefinitionsPart = new StyleDefinitionsPart();
+////            styleDefinitionsPart.setPackage(newDoc);
+////            styleDefinitionsPart.setJaxbElement(styles);
+////            newDoc.getMainDocumentPart().addTargetPart(styleDefinitionsPart);
+//        } catch (InvalidFormatException ex) {
+//            ex.printStackTrace();
+//        } catch (JAXBException e) {
+//            e.printStackTrace();
+//        }
 
     }
 
-    public static void main(String[] args) throws Exception{
-        EditingFirstPages e = new EditingFirstPages(DocxMethods.getTemplate("docx/2_1.docx"), "Руководство оператора", 19,
-                "АНАЛИЗАТОР ПОКЕРНЫХ ИГР НА ОСНОВЕ МНОГОСЛОЙНОГО ПЕРСЕПТРОНА");
-      //  e.doc = DocxMethods.getTemplate("docx/2.docx");
-        e.processDoc();
-        try {
-            e.newDoc.save(new File("3.docx"));
-        } catch (Docx4JException ex) {
-            ex.printStackTrace();
-        }
-    }
 
     private  void setFirstPage() {
 
+
         CTVerticalJc ctVerticalJc = new CTVerticalJc();
         ctVerticalJc.setVal(STVerticalJc.CENTER);
-        Tbl table = new Tbl();
+        Tbl table = factory.createTbl();
         table.setTblPr(new TblPr());
         TblWidth width = new TblWidth();
         width.setType("pct");
-        width.setW(BigInteger.valueOf(4500));
+        width.setW(BigInteger.valueOf((int)(0.5*pageWidth)));
         table.getTblPr().setTblW(width);
         TblGrid tblGrid = Context.getWmlObjectFactory().createTblGrid();
         table.setTblGrid(tblGrid);
@@ -182,24 +190,25 @@ public class EditingFirstPages {
         cellMar.setLeft(width2);
         cellMar.setRight(width2);
         cellMar.setTop(width2);
-        table.getTblPr().setTblCellMar(cellMar);
-        TblGridCol tblGridCol1 = new TblGridCol();
-        tblGridCol1.setW(BigInteger.valueOf(500));
-        TblGridCol tblGridCol2 = new TblGridCol();
-        tblGridCol2.setW(BigInteger.valueOf(3000));
-        TblGridCol tblGridCol3 = new TblGridCol();
-        tblGridCol3.setW(BigInteger.valueOf(3000));
-        TblGridCol tblGridCol4 = new TblGridCol();
-        tblGridCol4.setW(BigInteger.valueOf(3000));
-        table.getTblGrid().getGridCol().add(tblGridCol1);
-        table.getTblGrid().getGridCol().add(tblGridCol2);
-        table.getTblGrid().getGridCol().add(tblGridCol3);
-        table.getTblGrid().getGridCol().add(tblGridCol4);
+
+//        table.getTblPr().setTblCellMar(cellMar);
+//        TblGridCol tblGridCol1 = new TblGridCol();
+//        tblGridCol1.setW(BigInteger.valueOf((int)(0.9*pageWidth)));
+//        TblGridCol tblGridCol2 = new TblGridCol();
+//        tblGridCol2.setW(BigInteger.valueOf((int)(0.9*pageWidth)));
+//        TblGridCol tblGridCol3 = new TblGridCol();
+//        tblGridCol3.setW(BigInteger.valueOf(3000));
+//        TblGridCol tblGridCol4 = new TblGridCol();
+//        tblGridCol4.setW(BigInteger.valueOf(3000));
+//        table.getTblGrid().getGridCol().add(tblGridCol1);
+//        table.getTblGrid().getGridCol().add(tblGridCol2);
+//        table.getTblGrid().getGridCol().add(tblGridCol3);
+//        table.getTblGrid().getGridCol().add(tblGridCol4);
 
         P[] pr0 = new P[1];
         if (!(company == null) && !company.equals("")) {
             pr0[0] = setP(company.toUpperCase(), "Arial", null, "0", "0", 360, "CENTER", null, false, false);
-            table.getContent().add(addRowWithMergedCells(false, null, pr0, null, 0, 9500, 0, 0));
+            table.getContent().add(addRowWithMergedCells(false, null, pr0, null, 0, (int)(pageWidth*0.5), 0, 0));
         }
         int i = 0;
         P[] pr1 = null;
@@ -213,7 +222,8 @@ public class EditingFirstPages {
             pr2[0] = setP(approve, "Times New Roman", null, null, null, 240, "CENTER", null, false, false);
         }
         P[] pr = {setP("", "Times New Roman", null, null, null, 240, null, null, false, false) };
-        table.getContent().add(addRowWithMergedCells(true, pr1,pr,pr2, 3000,3000, 3000, 1 ));
+        table.getContent().add(addRowWithMergedCells(true, pr1,pr,pr2, (int)(pageWidth*0.2),(int)(pageWidth*0.2),
+                (int)(pageWidth*0.2), 1 ));
 
         P[] pr3 = new P[10];
         pr3[i] = setP("","Times New Roman", null, null, null, 240, null, null, false, false);i++;
@@ -233,7 +243,7 @@ public class EditingFirstPages {
         pr3[i] = setP("", "Arial", null, null, null, 360, "CENTER", "20", false, false);i++;
         if (!nPages.isEmpty()) {
             pr3[i] = setP(nPages, "Arial",null, null, null, 360, "CENTER", "28", true, true);}
-        table.getContent().add(addRowWithMergedCells(false, null, pr3, null, 0, 3000, 0, 2));
+        table.getContent().add(addRowWithMergedCells(false, null, pr3, null, 0, (int)(pageWidth*0.5), 0, 2));
         P[] pr_ = {new P(), new P(), new P(), new P(),new P(), new P(), new P(),
                 new P(),new P(), new P(), new P(), new P()};
 
@@ -262,16 +272,17 @@ public class EditingFirstPages {
         P[] pr6 = {setP(year, "Times New Roman", null, null, null, 240, "CENTER", null, false, true),
                 setP(changeString, "Times New Roman", null, null, null, 240, "CENTER", null, false, true),
                 setP(letter, "Times New Roman", null, null, null, 240, "RIGHT", null, false, true)};
-        table.getContent().add(addRowWithMergedCells(false, pr4, pr_, pr5, 3000, 3000, 3000, 3));
-        table.getContent().add(addRowWithMergedCells(false, null, pr6, null, 0, 3000, 0, 4));
-        newDoc.getMainDocumentPart().getContent().add(table);
+        table.getContent().add(addRowWithMergedCells(false, pr4, pr_, pr5, (int)(pageWidth*0.2), (int)(pageWidth*0.2),
+                (int)(pageWidth*0.2), 3));
+        table.getContent().add(addRowWithMergedCells(false, null, pr6, null, 0, (int)(pageWidth*0.5), 0, 4));
+        doc.getMainDocumentPart().getContent().add(0,table);
         Br objBr = new Br();
         objBr.setType(STBrType.PAGE);
         P p = factory.createP();
         R r = factory.createR();
         r.getContent().add(objBr);
         p.getContent().add(r);
-        newDoc.getMainDocumentPart().getContent().add(p);
+        doc.getMainDocumentPart().getContent().add(1, p);
 
 
     }
@@ -287,7 +298,7 @@ public class EditingFirstPages {
         table.setTblPr(new TblPr());
         TblWidth width = new TblWidth();
         width.setType("pct");
-        width.setW(BigInteger.valueOf(4500));
+        width.setW(BigInteger.valueOf((int)(0.5*pageWidth)));
         table.getTblPr().setTblW(width);
         TblGrid tblGrid = Context.getWmlObjectFactory().createTblGrid();
         table.setTblGrid(tblGrid);
@@ -300,28 +311,16 @@ public class EditingFirstPages {
         cellMar.setLeft(width2);
         cellMar.setRight(width2);
         cellMar.setTop(width2);
-        table.getTblPr().setTblCellMar(cellMar);
-        TblGridCol tblGridCol1 = new TblGridCol();
-        tblGridCol1.setW(BigInteger.valueOf(500));
-        TblGridCol tblGridCol2 = new TblGridCol();
-        tblGridCol2.setW(BigInteger.valueOf(1500));
-        TblGridCol tblGridCol3 = new TblGridCol();
-        tblGridCol3.setW(BigInteger.valueOf(1500));
-        TblGridCol tblGridCol4 = new TblGridCol();
-        tblGridCol4.setW(BigInteger.valueOf(1500));
-        table.getTblGrid().getGridCol().add(tblGridCol1);
-        table.getTblGrid().getGridCol().add(tblGridCol2);
-        table.getTblGrid().getGridCol().add(tblGridCol3);
-        table.getTblGrid().getGridCol().add(tblGridCol4);
 
         P[] pr1 = {setP("УТВЕРЖДЕНО", "Times New Roman", null, null, null, 480, null, null, false, false),
                 setP(docNumber.replace("{wrong}","").replace("-ЛУ",""), "Courier New", null, null, null, 240, "LEFT", "20", false, false),
-                };
+        };
 
         P[] pr = {setP("", "Times New Roman", null, null, null, 240, null, null, false, false),
                 setP("", "Times New Roman", null, null, null, 240, null, null, false, false),
                 setP("", "Times New Roman", null, null, null, 240, null, null, false, false) };
-        table.getContent().add(addRowWithMergedCells(true, pr1,pr,pr, 1500,1500, 1500, 1 ));
+        table.getContent().add(addRowWithMergedCells(true, pr1,pr,pr,(int)(0.2*pageWidth) ,(int)(0.2*pageWidth),
+                (int)(0.2*pageWidth), 1 ));
 
         P[] pr3 = new P[9];
         int i = 0;
@@ -330,10 +329,6 @@ public class EditingFirstPages {
         pr3[i] = setP("", "Arial",null, null, null, 240, null, null, false, false);i++;
         if (!(subName == null) && !subName.equals("")) {
             pr3[i] = setP(subName, "Arial",null, null, null,240, "CENTER", null, false, true); i++;}
-        if (setType) {
-            pr3[i] = setP(type, "Arial", null, null, null, 360, "CENTER", null, false, false); i++;}
-        if (!(subName == null) && !subName.equals("") && !subName.isEmpty()) {
-            pr3[i] = setP(subName, "Arial",null, null, null,240, "CENTER", "24", false, true); i++;}
         if (setType) {
             pr3[i] = setP(type, "Arial", null, null, null, 360, "CENTER", "24", false, false); i++;}
         if (albom!= null && !albom.isEmpty() && !albom.equals("")) {
@@ -345,21 +340,21 @@ public class EditingFirstPages {
         pr3[i] = setP("", "Arial", null, null, null, 360, "CENTER", "20", false, false);i++;
         if (!nPages.isEmpty()) {
             pr3[i] = setP(nPages, "Arial",null, null, null, 360, "CENTER", "28", true, true);}
-        table.getContent().add(addRowWithMergedCells(false, null, pr3, null, 0, 9500, 0, 2));
+        table.getContent().add(addRowWithMergedCells(false, null, pr3, null, 0, (int)(0.5*pageWidth), 0, 2));
         P[] pr_ = {new P(), new P(), new P(), new P(),new P(), new P(), new P(), new P(),new P(), new P(), new P(), new P()};
         table.getContent().add(addRowWithMergedCells(false, pr, pr_, pr, 1500, 1500, 1500, 3));
         P[] pr5 = {setP(year, "Times New Roman", null, null, null, 240, "CENTER", null, false, true),
                 setP(changeString, "Times New Roman", null, null, null, 240, "CENTER", null, false, true),
                 setP(letter, "Times New Roman", null, null, null, 240, "RIGHT", null, false, true)};
-        table.getContent().add(addRowWithMergedCells(false, null, pr5, null, 0, 4500, 0, 4));
-        newDoc.getMainDocumentPart().getContent().add(table);
+        table.getContent().add(addRowWithMergedCells(false, null, pr5, null, 0, (int)(0.5*pageWidth), 0, 4));
+        doc.getMainDocumentPart().getContent().add(2, table);
         Br objBr = new Br();
         objBr.setType(STBrType.PAGE);
         P p = factory.createP();
         R r = factory.createR();
         r.getContent().add(objBr);
         p.getContent().add(r);
-        newDoc.getMainDocumentPart().getContent().add(p);
+        doc.getMainDocumentPart().getContent().add(3, p);
     }
 
     private  Tr addRowWithMergedCells(boolean image, P[] ps, P[] ps2, P[] ps3, int width1, int width2 , int width3, int num) {
@@ -369,14 +364,14 @@ public class EditingFirstPages {
 
         if (num == 0 || num == 2 || num == 4) {
             addMergedColumn(row, image, -1, 0);
-            addTableCell(row, ps2, width2, 6);
+            addTableCell(row, ps2, width2, 2);
         }
         if (num == 1 || num == 3) {
             int width = (num == 1) ? 500 : 0;
-            addMergedColumn(row, image, 0, width);
-            addTableCell(row, ps, width1, 1);
-            addTableCell(row, ps2, width2, 2);
-            addTableCell(row, ps3, width3, 3);
+            addMergedColumn(row, image, -1, width);
+            addTableCell(row, ps, width1, -1);
+            addTableCell(row, ps2, width2, -1);
+            addTableCell(row, ps3, width3, -1);
         }
 
         return row;
@@ -407,13 +402,13 @@ public class EditingFirstPages {
         tableCell.setTcPr(tableCellProperties);
         tableCell.getTcPr().setTcW(tableWidth);
 
-
-         TcPrInner.GridSpan gridSpan = new TcPrInner.GridSpan();
-            gridSpan.setVal(BigInteger.valueOf(grid));
-            tableCellProperties.setGridSpan(gridSpan);
+//
+//         TcPrInner.GridSpan gridSpan = new TcPrInner.GridSpan();
+//            gridSpan.setVal(BigInteger.valueOf(grid));
+//            tableCellProperties.setGridSpan(gridSpan);
 
         if(image) {
-            tableCell.getContent().add(newImage());
+            tableCell.getContent().add(DocxMethods.newImage(doc, new File("resource/table.gif")));
         }
         else {tableCell.getContent().add(new P());}
 
@@ -436,12 +431,16 @@ public class EditingFirstPages {
         CTVerticalJc ctVerticalJc = factory.createCTVerticalJc();
         ctVerticalJc.setVal(STVerticalJc.CENTER);
         tableCellProperties.setVAlign(ctVerticalJc);
-        BooleanDefaultTrue value = new BooleanDefaultTrue();
+        if (grid == 6) {
+            CTVerticalJc valign = factory.createCTVerticalJc();
+            valign.setVal(STVerticalJc.TOP);
+            tableCellProperties.setVAlign(valign);
+        }
 
-        tableCellProperties.setHideMark(value);
+        //     tableCellProperties.setHideMark(value);
         if (grid!=-1) {
             TcPrInner.GridSpan gridSpan = new TcPrInner.GridSpan();
-            gridSpan.setVal(BigInteger.valueOf(grid));
+            gridSpan.setVal(BigInteger.valueOf(3));
             tableCellProperties.setGridSpan(gridSpan);
         }
         tableCellProperties.setTcW(tableWidth);
@@ -461,72 +460,6 @@ public class EditingFirstPages {
         return p;
     }
 
-    private  org.docx4j.wml.P newImage() {
-
-        File file = new File("resource/table.gif" );
-        java.io.InputStream is = null;
-        try {
-            is = new java.io.FileInputStream(file );
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        long length = file.length();
-        if (length > Integer.MAX_VALUE) {
-            System.out.println("File too large!!");
-        }
-        byte[] bytes = new byte[(int)length];
-        int offset = 0;
-        int numRead;
-        try {
-            while (offset < bytes.length
-                    && (numRead=is.read(bytes, offset, bytes.length-offset)) >= 0) {
-                offset += numRead;
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        if (offset < bytes.length) {
-            System.out.println("Could not completely read file "+file.getName());
-        }
-        try {
-            is.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        String filenameHint = null;
-        String altText = null;
-        int id1 = 0;
-        int id2 = 1;
-        BinaryPartAbstractImage imagePart = null;
-        try {
-            imagePart = BinaryPartAbstractImage.createImagePart(newDoc, bytes);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        Inline inline = null;
-        try {
-            inline = imagePart.createImageInline( filenameHint, altText,
-                    id1, id2, true);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        org.docx4j.wml.P  p = factory.createP();
-        p.setPPr(factory.createPPr());
-        org.docx4j.wml.R  run = factory.createR();
-        RPr rPr = factory.createRPr();
-        BooleanDefaultTrue value = new BooleanDefaultTrue();
-        rPr.setNoProof(value );
-        p.getContent().add(run);
-        org.docx4j.wml.Drawing drawing = factory.createDrawing();
-        run.getContent().add(drawing);
-        drawing.getAnchorOrInline().add(inline);
-       // Text t = factory.createText();
-        //run.getContent().add(t);
-        return p;
-
-    }
 
 
     private boolean checkForRIGHTAlign () {

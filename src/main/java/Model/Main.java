@@ -1,37 +1,26 @@
 package Model;
 
-import org.docx4j.jaxb.Context;
-import org.docx4j.openpackaging.exceptions.Docx4JException;
-import org.docx4j.openpackaging.exceptions.InvalidFormatException;
+import org.docx4j.convert.out.common.preprocess.CoverPageSectPrMover;
+import org.docx4j.convert.out.common.preprocess.ParagraphStylesInTableFix;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
-import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
-import org.docx4j.wml.ObjectFactory;
-import org.docx4j.wml.P;
-import org.docx4j.wml.Style;
-import org.docx4j.wml.Styles;
 
-import javax.xml.bind.JAXBException;
 import java.io.File;
 
 public class Main {
     public static void main(String[] args) {
 
-//        MainPart comparisonWithTemplate = new MainPart();
-//        comparisonWithTemplate.setTwoDocx("docx/template.docx","docx/document.docx");
+        MainPart comparisonWithTemplate = new MainPart();
+        comparisonWithTemplate.setTwoDocx("docx/template.docx","docx/document.docx");
         try {
-         //  WordprocessingMLPackage word = comparisonWithTemplate.setAppropriateText();
+           WordprocessingMLPackage word =  comparisonWithTemplate.setAppropriateText();
 
-//            WordprocessingMLPackage fonts = DocxMethods.getTemplate("resource/fonts.docx");
-//            Styles oldStyles = (Styles)fonts.getMainDocumentPart().getStyleDefinitionsPart().unmarshalDefaultStyles();
-            WordprocessingMLPackage word = DocxMethods.getTemplate("docx/document.docx");
-//            StyleDefinitionsPart styleDefinitionsPart = new StyleDefinitionsPart();
-//            styleDefinitionsPart.setPackage(word);
-//            styleDefinitionsPart.setJaxbElement(oldStyles);
-//            word.getMainDocumentPart().addTargetPart(styleDefinitionsPart);
             EditingFirstPages editingFirstPages = new EditingFirstPages(word,"Руководство оператора" ,19, "программа проверки на соответствие госту");
             word = editingFirstPages.processDoc();
-            word.save(new File("2.docx"));
+            System.out.println(word.getMainDocumentPart().getContent().size());
 
+            word.save(new File("2.docx"));
+            CoverPageSectPrMover.process(word);
+            ParagraphStylesInTableFix.process(word);
             DocxToPDFConverter.convert(word);
         } catch (Exception e) {
             e.printStackTrace();

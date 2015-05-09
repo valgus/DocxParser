@@ -1,17 +1,11 @@
 package Model;
 
-import Model.DocBase;
-import Model.DocxMethods;
-import Model.TemplateParser;
-import Model.Title;
 import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.Part;
-import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.*;
 
-import javax.print.Doc;
 import javax.xml.bind.JAXBElement;
 import javax.xml.namespace.QName;
 import java.io.File;
@@ -33,15 +27,13 @@ public class MainPart {
 
     public WordprocessingMLPackage setAppropriateText() throws Exception {
         WordprocessingMLPackage document  = DocxMethods.getTemplate(compared.getAbsolutePath());
+        //set Pade margins and size
+        DocxMethods.setPageMargins(document);
+        //delete contents of header and footer
+        document = DocxMethods.cleanHeaderFooter(document);
+        //set page and table of changes
+        HeaderFooter.process(document);
         if (!exist) throw new Exception();
-        Part stylesPart = new org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart();
-        ((org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart) stylesPart)
-                    .unmarshalDefaultStyles();
-       // document.addTargetPart(stylesPart);
-
-//        List<Object> contents = document.getMainDocumentPart().getContent().subList(
-//                0, 43);
-//        document.getMainDocumentPart().getContent().removeAll(contents);
         List<Title> titles = TemplateParser.getListOfTitles(template.getAbsolutePath());
         List<Object> documentParagraphes = DocxMethods.getAllElementFromObject(document.getMainDocumentPart(), P.class);
         Map<Integer, P> corespondences = findCorespondences(document, documentParagraphes, titles);
@@ -62,11 +54,17 @@ public class MainPart {
                     if (t!=null) {
                         DocBase.setText(p, t.getName(), true);
                         String[] atr = DocBase.getAttributes(t);
-                        DocBase.setStyle(p, null, null, null, atr[1], atr[2], 0, "CENTER", true);
+                        int i = DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(), p);
+                  //      P previousP = DocBase.makePageBr();
+                 //      document.getMainDocumentPart().getContent().add(i-1, previousP);
+                        String s = "LEFT";
+                        if (atr[1] == "1")
+                            s = "CENTER";
+                        DocBase.setStyle(p, null, null, null, atr[1], atr[2], 0, s, true);
                         DocBase.setHighlight(p, "green");
                     }
                     else {
-                        DocBase.setStyle(p, null, null, null, null, null, 0, "CENTER", true);
+                        DocBase.setStyle(p, null, null, null, null, null, 0, "LEFT", true);
                         DocBase.setHighlight(p, "green");
                     }
 
@@ -111,6 +109,7 @@ public class MainPart {
         R r2 = factory.createR();
         r2.getContent().add(getWrappedFldChar(fldcharend));
         paragraphForTOC.getContent().add(r2);
+        //TODO
         document.getMainDocumentPart().getContent().add(0,  paragraphForTOC);
 
         return document;
@@ -160,7 +159,7 @@ public class MainPart {
         BigInteger not  = new BigInteger("-1");
         for (Object o : documentParagraphes) {
             P p = (P) o;
-            DocBase.setSpacing(p, 240);
+            DocBase.setSpacing(p, 240, -1);
             if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null) {
                 if (!DocBase.getLevelInList(p).equals(not) ) {
                     int i = DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(), p);

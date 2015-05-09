@@ -37,7 +37,7 @@ public final class DocBase {
             setLevel(p, level, id);
         }
         if (space != 0)
-            setSpacing(p, space);
+            setSpacing(p, space, -1);
         if (align != null) {
             setAlign(p, align);
         }
@@ -72,7 +72,7 @@ public final class DocBase {
             }
         }
     }
-    private static void setSize(P p, String fontSize) {
+    public static void setSize(P p, String fontSize) {
         HpsMeasure size = new HpsMeasure();
         size.setVal(new BigInteger(fontSize));
         List<Object> contents = p.getContent();
@@ -153,19 +153,17 @@ public final class DocBase {
         }
     }
 
-    private static void setFont (P p, String font) {
+    public static void setFont (P p, String font) {
+        if (p.getPPr() == null)
+            p.setPPr(factory.createPPr());
+        if (p.getPPr().getRPr() == null)
+            p.getPPr().setRPr(factory.createParaRPr());
         RFonts rf = new RFonts();
         rf.setAscii(font);
         rf.setCs(font);
         rf.setHAnsi(font);
         rf.setHint(STHint.DEFAULT);
-        try {
-            p.getPPr().getRPr().setRFonts(rf);
-        }
-        catch (NullPointerException ex) {
-            p.setPPr(new PPr());
-            p.getPPr().getRPr().setRFonts(rf);
-        }
+        p.getPPr().getRPr().setRFonts(rf);
         List<Object> contents = p.getContent();
         for (Object content : contents) {
             if (content instanceof R) {
@@ -181,10 +179,12 @@ public final class DocBase {
 
     }
 
-    public static void setSpacing (P p, int space) {
+    public static void setSpacing (P p, int spaceafter, int spacebefore) {
         if (p.getPPr()==null) p.setPPr(new PPr());
         PPrBase.Spacing spacing = new PPrBase.Spacing();
-        spacing.setLine(BigInteger.valueOf(space));
+        spacing.setAfter(BigInteger.valueOf(spaceafter));
+        if (spacebefore != -1)
+            spacing.setBefore(BigInteger.valueOf(spacebefore));
         try {
             p.getPPr().setSpacing(spacing);
         }
@@ -395,28 +395,6 @@ public final class DocBase {
             return null;
         }
     }
-    public static void main(String[] args) {
-        WordprocessingMLPackage word;
-        try {
-            word = DocxMethods.getTemplate("docx/document.docx");
-            addParagraph(word.getMainDocumentPart(), "123 run me", 3);
-            List<Object> jaxbNodes = DocxMethods.createParagraphJAXBNodes(word);
-            for (Object jaxbNode : jaxbNodes) {
-                P p = (P) jaxbNode;
-               // setFont(p, "Arial");
-             //TO DO   setSpacing(p, true);
-                System.out.println(getText(p)+getFont(p));
-
-                System.out.println(isUpperCase(p));
-            }
-            word.save(new File("docx/2.docx"));
-        } catch (Docx4JException e) {
-            e.printStackTrace();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-    }
 
     public static List<String> changeToString (List<P> para) {
         List<String> strings = new ArrayList<>();
@@ -440,4 +418,13 @@ public final class DocBase {
         return p;
     }
 
+    public static P makePageBr() throws Exception {
+        P p = factory.createP();
+        R r = factory.createR();
+        Br br = factory.createBr();
+        br.setType(STBrType.PAGE);
+        r.getContent().add(br);
+        p.getContent().add(r);
+        return p;
+    }
 }
