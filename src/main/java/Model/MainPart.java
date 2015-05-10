@@ -3,6 +3,7 @@ package Model;
 import org.docx4j.jaxb.Context;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.Part;
+import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.*;
 
@@ -31,17 +32,13 @@ public class MainPart {
         DocxMethods.setPageMargins(document);
         //delete contents of header and footer
         document = DocxMethods.cleanHeaderFooter(document);
-        //set page and table of changes
-        HeaderFooter.process(document);
         if (!exist) throw new Exception();
         List<Title> titles = TemplateParser.getListOfTitles(template.getAbsolutePath());
         List<Object> documentParagraphes = DocxMethods.getAllElementFromObject(document.getMainDocumentPart(), P.class);
         Map<Integer, P> corespondences = findCorespondences(document, documentParagraphes, titles);
-
-        if (corespondences.size() == 0) {
+        if (corespondences.size() == 0)
             throw new Exception("Файл не соответствует шаблону!");
-        }
-        else {
+            int indexOfTableOfContent = -1;
             Collection<P> values = corespondences.values();
             Iterator it = values.iterator();
             P p;
@@ -50,17 +47,24 @@ public class MainPart {
                 do{
                     p = (P)it.next();
                   //  DocBase.setSpacing(p, 360);
+                    if (indexOfTableOfContent==-1)
+                        indexOfTableOfContent = DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(), p);
                     t = findTitle(titles, p);
                     if (t!=null) {
                         DocBase.setText(p, t.getName(), true);
                         String[] atr = DocBase.getAttributes(t);
-                        int i = DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(), p);
-                  //      P previousP = DocBase.makePageBr();
-                 //      document.getMainDocumentPart().getContent().add(i-1, previousP);
+                   //     P previousP = DocBase.makePageBr();
+                 //     document.getMainDocumentPart().getContent().add(i-1, previousP);
+                        DocBase.setText(p, t.getName(), true);
                         String s = "LEFT";
-                        if (atr[1] == "1")
-                            s = "CENTER";
-                        DocBase.setStyle(p, null, null, null, atr[1], atr[2], 0, s, true);
+                        String size = "28";
+                        if (atr[0].equals("1")) {
+                            DocBase.setText(p, DocBase.getText(p).toUpperCase(), true);
+                            size = "32";
+                           if (!DocBase.getText(p).toLowerCase().equals("приложения")) s = "CENTER";
+                        }
+
+                        DocBase.setStyle(p, size, "Times New Roman", null, atr[1], atr[2], 0, s, true);
                         DocBase.setHighlight(p, "green");
                     }
                     else {
@@ -70,18 +74,20 @@ public class MainPart {
 
                 } while (it.hasNext());
             }
-        }
+
         for (Object o : documentParagraphes) {   //setAttributes
-            P p = (P) o;
+            p = (P) o;
    //         DocBase.setSpacing(p, 240);
-            if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null)
-                DocBase.setStyle(p, "28","Times New Roman", null, null, null, 0, "BOTH", false);
+            if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null) {
+                DocBase.deleteTabsInParagraph(p);
+                DocBase.addTab(p);
+                DocBase.setStyle(p, "28","Times New Roman", null, null, null, 0, "LEFT", false);
+            }
         }
 
-//        changeEnumeration(document, documentParagraphes);
-//
+        setEnumeration(documentParagraphes.subList(indexOfTableOfContent, documentParagraphes.size()-1));
         for (Object o : documentParagraphes) {
-            P p = (P) o;
+            p = (P) o;
             if (DocBase.getHighlight(p)!=null) {
                 DocBase.setHighlight(p, null);
             }
@@ -109,8 +115,8 @@ public class MainPart {
         R r2 = factory.createR();
         r2.getContent().add(getWrappedFldChar(fldcharend));
         paragraphForTOC.getContent().add(r2);
-        //TODO
-        document.getMainDocumentPart().getContent().add(0,  paragraphForTOC);
+        document.getMainDocumentPart().getContent().add(indexOfTableOfContent,  paragraphForTOC);
+        document.getMainDocumentPart().getContent().add(indexOfTableOfContent+1, DocBase.makePageBr());
 
         return document;
 
@@ -152,41 +158,118 @@ public class MainPart {
         return  null;
     }
 
-    private void changeEnumeration (WordprocessingMLPackage document,List<Object> documentParagraphes)
-    {
-        ArrayList<Integer> indexes = new ArrayList<>();
-        int number = 0;
-        BigInteger not  = new BigInteger("-1");
-        for (Object o : documentParagraphes) {
-            P p = (P) o;
-            DocBase.setSpacing(p, 240, -1);
-            if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null) {
-                if (!DocBase.getLevelInList(p).equals(not) ) {
-                    int i = DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(), p);
-                    if (indexes.size()== 0)
-                        number++;
-                    if (indexes.size()!= 0 && (indexes.get(indexes.size()-1) +1 != i))
-                        number++;
-                    indexes.add(i);
-                }
-            }
-        }
-        String id = "22";
-
-        int previous = indexes.get(0)-1;
-        for (Integer index : indexes) {
-            P p = DocxMethods.getParagraphFromIndex(document.getMainDocumentPart(), index);
-            if (previous != index -1) {
-                id = String.valueOf(Integer.decode(id)+1);
-            }
-            DocBase.setList(p);
-            previous = index;
-        }
-    }
-
     private JAXBElement getWrappedFldChar(FldChar fldchar) {
         return new JAXBElement( new QName(Namespaces.NS_WORD12, "fldChar"),
                 FldChar.class, fldchar);
 
+    }
+
+
+    private void setEnumeration(List<Object> documentParagraphes) {
+        int currentNumId, currentLevel;
+        LinkedHashMap<Integer, Integer> data = new LinkedHashMap<>();
+        for (int i = 0; i < documentParagraphes.size(); i++) {
+            P p = (P)documentParagraphes.get(i);
+            currentLevel = DocBase.getLevelInList(p).intValue();
+            currentNumId = DocBase.getNumIDInList(p).intValue();
+            if (DocBase.getHighlight(p) == null && !DocBase.getText(p).isEmpty()){
+                if (currentLevel!= -1 && currentNumId!=-1) {
+                    if (data.size()==0) {
+                        data.put(i, 1);
+                    }
+                    else {
+                        Integer previous = data.get(i-1);
+                        if (previous!= null) {
+                            if (currentLevel == DocBase.getLevelInList((P)documentParagraphes.get(i-1)).intValue() &&
+                                    currentNumId == DocBase.getNumIDInList((P)documentParagraphes.get(i-1)).intValue())
+                                data.put(i, previous);
+                            else if (currentLevel < DocBase.getLevelInList((P)documentParagraphes.get(i-1)).intValue()){
+                                data.put(i, previous-1);
+                            }
+                            else {
+                                data.put(i, previous+1);
+                            }
+                        }
+                        else
+                            data.put(i, 1);
+                    }
+                }
+                else {
+                    P[] around;
+                    if (i !=0 && i!= documentParagraphes.size()-1) {
+                        around = new P[2];
+                        around[0] = (P)documentParagraphes.get(i-1);
+                        around[1] = (P)documentParagraphes.get(i+1);
+                    }
+                    else {
+                        around = new P[1];
+                        around[0] = (i==0)? (P)documentParagraphes.get(i+1) :(P)documentParagraphes.get(i-1);
+                    }
+                    if (DocBase.isInList(p, around)) {
+                        if (data.size()==0) {
+                            data.put(i, 1);
+                        }
+                        else {
+                            Integer previous = data.get(i-1);
+                            if (previous!= null) {
+                                if (DocBase.sameEnumeration((P)documentParagraphes.get(i-1), p))
+                                    data.put(i, previous);
+                                else {
+                                        data.put(i, previous+1);
+                                }
+                            }
+                            else {
+                                data.put(i, 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        String[] chars = {"а","б","в","д","е","ж","и","к","л","м","н","п","р","с","т","у","ф","х","ц","ч",
+                "ш","щ","э","ю","я"};
+        int num = 1;
+        int charnum = 0;
+        String character;
+        Set<Integer> indexes = data.keySet();
+        Iterator it = indexes.iterator();
+        Integer previous = null;
+        while (it.hasNext()) {
+            int index = (int)it.next();
+            P p = (P)documentParagraphes.get(index);
+            DocBase.removeEnum(p);
+            if (previous!= null) {
+                if (data.get(previous) == data.get(index) && previous + 1 == index)
+                    character = ";";
+                else if (previous + 1 < index || data.get(previous) < data.get(index)){
+                    character = ".";
+                    num = 1;
+                    charnum = 0;
+                }
+                    else
+                        character = ":";
+                String s = DocBase.getText((P)documentParagraphes.get(previous)).trim();
+                if (s.endsWith(";")||s.endsWith(".")||s.endsWith(":")) {
+                    s = s.substring(0, s.length()-1);
+                    DocBase.setText((P)documentParagraphes.get(previous), s, true);
+                }
+                DocBase.setText((P)documentParagraphes.get(previous), character, false);
+            }
+            if (data.get(index) == 1) {
+                DocBase.setText(p,"-  " + DocBase.getText(p), true);
+            }
+            else if (data.get(index) == 2) {
+                DocBase.addTab(p);
+                DocBase.setText(p, chars[charnum++] + ")  " +DocBase.getText(p), true);
+            }
+                else {
+                DocBase.addTab(p);
+                DocBase.addTab(p);
+                DocBase.setText(p,String.valueOf(num++) + ")  " + DocBase.getText(p), true);
+            }
+            previous = index;
+            if (!it.hasNext())
+                DocBase.setText(p, ".", false);
+        }
     }
 }

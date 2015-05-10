@@ -122,12 +122,13 @@ public class EditingFirstPages {
                 break;
             }
         }
-        for (int i = 0; i<= toIndex + 1; i++) {
+        for (int i = 0; i<= toIndex; i++) {
             doc.getMainDocumentPart().getContent().remove(doc.getMainDocumentPart().getContent().get(0));
         }
         while (true) {
             if (doc.getMainDocumentPart().getContent().get(0) instanceof P) {
-                s = DocBase.getText((P)doc.getMainDocumentPart().getContent().get(0));
+                P p = (P)doc.getMainDocumentPart().getContent().get(0);
+                s = DocBase.getText(p);
                 if (s.isEmpty() || s.matches("[ ]*")) {
                     doc.getMainDocumentPart().getContent().remove(doc.getMainDocumentPart().getContent().get(0));
                 }
@@ -152,23 +153,10 @@ public class EditingFirstPages {
         this.type = typeOfDoc;
         this.numGOST = numGOST;
         this.name = name;
-//        try {
-////            newDoc = WordprocessingMLPackage.createPackage();
-////            Styles styles = (Styles)newDoc.getMainDocumentPart().getStyleDefinitionsPart().unmarshalDefaultStyles();
-////            StyleDefinitionsPart styleDefinitionsPart = new StyleDefinitionsPart();
-////            styleDefinitionsPart.setPackage(newDoc);
-////            styleDefinitionsPart.setJaxbElement(styles);
-////            newDoc.getMainDocumentPart().addTargetPart(styleDefinitionsPart);
-//        } catch (InvalidFormatException ex) {
-//            ex.printStackTrace();
-//        } catch (JAXBException e) {
-//            e.printStackTrace();
-//        }
-
     }
 
 
-    private  void setFirstPage() {
+    private  void setFirstPage() throws Exception {
 
 
         CTVerticalJc ctVerticalJc = new CTVerticalJc();
@@ -190,20 +178,6 @@ public class EditingFirstPages {
         cellMar.setLeft(width2);
         cellMar.setRight(width2);
         cellMar.setTop(width2);
-
-//        table.getTblPr().setTblCellMar(cellMar);
-//        TblGridCol tblGridCol1 = new TblGridCol();
-//        tblGridCol1.setW(BigInteger.valueOf((int)(0.9*pageWidth)));
-//        TblGridCol tblGridCol2 = new TblGridCol();
-//        tblGridCol2.setW(BigInteger.valueOf((int)(0.9*pageWidth)));
-//        TblGridCol tblGridCol3 = new TblGridCol();
-//        tblGridCol3.setW(BigInteger.valueOf(3000));
-//        TblGridCol tblGridCol4 = new TblGridCol();
-//        tblGridCol4.setW(BigInteger.valueOf(3000));
-//        table.getTblGrid().getGridCol().add(tblGridCol1);
-//        table.getTblGrid().getGridCol().add(tblGridCol2);
-//        table.getTblGrid().getGridCol().add(tblGridCol3);
-//        table.getTblGrid().getGridCol().add(tblGridCol4);
 
         P[] pr0 = new P[1];
         if (!(company == null) && !company.equals("")) {
@@ -276,12 +250,18 @@ public class EditingFirstPages {
                 (int)(pageWidth*0.2), 3));
         table.getContent().add(addRowWithMergedCells(false, null, pr6, null, 0, (int)(pageWidth*0.5), 0, 4));
         doc.getMainDocumentPart().getContent().add(0,table);
-        Br objBr = new Br();
-        objBr.setType(STBrType.PAGE);
+      //  doc.getMainDocumentPart().getContent().add(1, DocBase.makePageBr());
+        SectPr sectPr= HeaderFooter.process(doc);
+        CTPageNumber pageNumber = sectPr.getPgNumType();
+        if (pageNumber==null) {
+            pageNumber = Context.getWmlObjectFactory().createCTPageNumber();
+            sectPr.setPgNumType(pageNumber);
+        }
+        pageNumber.setStart(BigInteger.ONE);
         P p = factory.createP();
-        R r = factory.createR();
-        r.getContent().add(objBr);
-        p.getContent().add(r);
+        PPr ppr = factory.createPPr();
+        p.setPPr(ppr);
+        ppr.setSectPr(sectPr);
         doc.getMainDocumentPart().getContent().add(1, p);
 
 

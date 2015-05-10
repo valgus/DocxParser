@@ -1,5 +1,8 @@
 package Model;
 
+import org.docx4j.convert.out.common.wrappers.ConversionSectionWrapperFactory;
+import org.docx4j.jaxb.Context;
+import org.docx4j.model.structure.HeaderFooterPolicy;
 import org.docx4j.model.structure.PageDimensions;
 import org.docx4j.model.structure.SectionWrapper;
 import org.docx4j.openpackaging.exceptions.InvalidFormatException;
@@ -9,6 +12,7 @@ import org.docx4j.openpackaging.parts.PartName;
 import org.docx4j.openpackaging.parts.WordprocessingML.FooterPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.HeaderPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
+import org.docx4j.openpackaging.parts.relationships.RelationshipsPart;
 import org.docx4j.relationships.Relationship;
 import org.docx4j.wml.*;
 
@@ -17,11 +21,14 @@ import java.io.File;
 import java.math.BigInteger;
 import java.util.List;
 
-public class HeaderFooter {
+public class HeaderFooter extends  SectionWrapper{
     private static int pageWidth = new PageDimensions().getWritableWidthTwips();
 
     private static org.docx4j.wml.ObjectFactory factory = new org.docx4j.wml.ObjectFactory();
 
+    protected HeaderFooter(SectPr sectPr, HeaderFooterPolicy previousHF, RelationshipsPart rels, BooleanDefaultTrue evenAndOddHeaders) {
+        super(sectPr, previousHF, rels, evenAndOddHeaders);
+    }
 
 
     public static Tbl makeTable(Part part) {
@@ -74,7 +81,7 @@ public class HeaderFooter {
         p.getContent().add(r);
         Text t = factory.createText();
         r.getContent().add(t);
-        t.setValue((text==null)?"":text);
+        t.setValue((text == null) ? "" : text);
         DocBase.setAlign(p, "CENTER");
         DocBase.setSpacing(p, 0, 0);
         DocBase.setSize(p, "16");
@@ -113,7 +120,7 @@ public class HeaderFooter {
         return hdr;
     }
 
-    public static void process(WordprocessingMLPackage word) throws Exception {
+    public static SectPr process(WordprocessingMLPackage word) throws Exception {
         MainDocumentPart mdp = word.getMainDocumentPart();
 
 
@@ -180,52 +187,63 @@ public class HeaderFooter {
 
         List<SectionWrapper> sections = word.getDocumentModel().getSections();
 
-        // Get last section SectPr and create a new one if it doesn't exist
-        SectPr sectPr = sections.get(sections.size() - 1).getSectPr();
-        if (sectPr == null) {
-            sectPr = factory.createSectPr();
-            word.getMainDocumentPart().addObject(sectPr);
-            sections.get(sections.size() - 1).setSectPr(sectPr);
+        SectPr sectPr1 = sections.get(sections.size() - 1).getSectPr();
+        if (sectPr1 == null)  {
+            sectPr1 = factory.createSectPr();
+            sections.get(sections.size() - 1).setSectPr(sectPr1);
         }
+        BooleanDefaultTrue booleanDefaultTrue = new BooleanDefaultTrue();
+        booleanDefaultTrue.setVal(true);
 
         // link cover and content headers
-        HeaderReference hdr_ref; // this variable is reused
+        HeaderReference hdr_ref;
 
         hdr_ref = factory.createHeaderReference();
         hdr_ref.setId(cover_hdr_rel.getId());
         hdr_ref.setType(HdrFtrRef.FIRST);
-        sectPr.getEGHdrFtrReferences().add(hdr_ref);
+        sectPr1.getEGHdrFtrReferences().add(hdr_ref);
 
         hdr_ref = factory.createHeaderReference();
         hdr_ref.setId(content_hdr_rel.getId());
         hdr_ref.setType(HdrFtrRef.DEFAULT);
-        sectPr.getEGHdrFtrReferences().add(hdr_ref);
+        sectPr1.getEGHdrFtrReferences().add(hdr_ref);
 
         BooleanDefaultTrue boolanDefaultTrue = new BooleanDefaultTrue();
-        sectPr.setTitlePg(boolanDefaultTrue);
+        sectPr1.setTitlePg(boolanDefaultTrue);
 
 
         // link cover and content footers
-        FooterReference ftr_ref; // this variable is reused
+        FooterReference ftr_ref;
 
         ftr_ref = factory.createFooterReference();
         ftr_ref.setId(cover_ftr_rel.getId());
         ftr_ref.setType(HdrFtrRef.FIRST);
-        sectPr.getEGHdrFtrReferences().add(ftr_ref);
-
+        sectPr1.getEGHdrFtrReferences().add(ftr_ref);
         ftr_ref = factory.createFooterReference();
         ftr_ref.setId(content_ftr_rel.getId());
         ftr_ref.setType(HdrFtrRef.DEFAULT);
-        sectPr.getEGHdrFtrReferences().add(ftr_ref);
-
+        sectPr1.getEGHdrFtrReferences().add(ftr_ref);
+        return sectPr1;
     }
 
     public static void main(String[] args) throws Exception {
         WordprocessingMLPackage word = WordprocessingMLPackage.createPackage();
         word.getMainDocumentPart().addParagraphOfText("sfvesdv");
-       word.getMainDocumentPart().addObject( DocBase.makePageBr());
-        word.getMainDocumentPart().addParagraphOfText("sfvesdv");
-        process(word);
+        P p = factory.createP();
+        PPr ppr = factory.createPPr();
+        p.setPPr(ppr);
+        SectPr sectPr= process(word);
+        CTPageNumber pageNumber = sectPr.getPgNumType();
+        if (pageNumber==null) {
+            pageNumber = Context.getWmlObjectFactory().createCTPageNumber();
+            sectPr.setPgNumType(pageNumber);
+        }
+        pageNumber.setStart(BigInteger.ONE);
+        ppr.setSectPr(sectPr);
+        word.getMainDocumentPart().addObject(p);
+        word.getMainDocumentPart().addParagraphOfText("after sectPr");
+        word.getMainDocumentPart().addObject( DocBase.makePageBr());
+        word.getMainDocumentPart().addParagraphOfText("after sectPr");
         word.save(new File("header_test.docx"));
         DocxToPDFConverter.convert(DocxMethods.getTemplate("header_test.docx"));
     }

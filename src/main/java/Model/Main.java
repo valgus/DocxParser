@@ -10,7 +10,7 @@ public class Main {
     public static void main(String[] args) {
 
         MainPart comparisonWithTemplate = new MainPart();
-        comparisonWithTemplate.setTwoDocx("docx/template.docx","docx/document.docx");
+        comparisonWithTemplate.setTwoDocx("docx/template.docx","docx/gost19_tehnicheskoe_zadanie.docx");
         try {
            WordprocessingMLPackage word =  comparisonWithTemplate.setAppropriateText();
 

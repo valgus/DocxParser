@@ -124,33 +124,13 @@ public final class DocBase {
         Text t = new Text();
         t.setValue(text);
         if (remove) {
-            for (int i = 0; i< contents.size(); i++) {
-                if (contents.get(i) instanceof R) {
-                    if (first != null)
-                        contents.remove(i);
-                    else
-                        first = (R)contents.get(i);
-                }
-            }
-        }
-        if (first!=null) {
+             p.getContent().clear();
 
-            for (Object o : first.getContent()) {
-                if (o instanceof JAXBElement) {
-                try{
-                    if (((JAXBElement) o).getValue() instanceof Text)
-                      ((JAXBElement) o).setValue(t);
-
-                }
-                catch (ClassCastException ex) {}
-                }
-            }
         }
-        else {
             R r =new R();
             r.getContent().add(t);
             p.getContent().add(r);
-        }
+
     }
 
     public static void setFont (P p, String font) {
@@ -219,15 +199,18 @@ public final class DocBase {
             if (p.getPPr() != null && p.getPPr().getRPr() != null)
                 p.getPPr().getRPr().setHighlight(null);
             for (Object content : contents) {
-                try{
-                    R r = (R) content;
-                    if (r.getRPr() != null)
-                      r.getRPr().setHighlight(null);
-            }
-                catch (ClassCastException ex) {}
-            return;
-
+                if (content instanceof R) {
+                    try{
+                        R r = (R) content;
+                        if (r.getRPr() != null)
+                            r.getRPr().setHighlight(null);
+                    }
+                    catch (ClassCastException ex) {
+                        System.out.println("df");
+                    }
+                }
            }
+           return;
         }
         Highlight highlight = new Highlight();
         highlight.setVal(color);
@@ -237,13 +220,17 @@ public final class DocBase {
             p.getPPr().setRPr(factory.createParaRPr());
         p.getPPr().getRPr().setHighlight(highlight);
         for (Object content : contents) {
-            try{
-            R r = (R) content;
-            if (r.getRPr() == null)
-                r.setRPr(factory.createRPr());
-            r.getRPr().setHighlight(highlight);
+            if (content instanceof R) {
+                try{
+                    R r = (R) content;
+                    if (r.getRPr() == null)
+                        r.setRPr(factory.createRPr());
+                    r.getRPr().setHighlight(highlight);
+                }
+                catch (ClassCastException ex) {
+                    System.out.println("d");
+                }
             }
-            catch (ClassCastException ex) {}
         }
 
     }
@@ -352,6 +339,7 @@ public final class DocBase {
         return name.toString().trim();
     }
 
+
     private static boolean isUpperCase(P p) {
         return DocBase.getText(p)==DocBase.getText(p).toUpperCase();
     }
@@ -426,5 +414,77 @@ public final class DocBase {
         r.getContent().add(br);
         p.getContent().add(r);
         return p;
+    }
+
+    public static boolean isInList (P p, P[] around) {
+        String s = getText(p);
+        String character;
+        if (s.contains(".") && s.indexOf(".")<3 || s.contains(")") && s.indexOf(")")<3 ||
+                s.contains("-") && s.indexOf("-")<2) {
+            character = (s.contains("."))?".":(s.contains(")"))?")":"-";
+            s = s.substring(0, s.indexOf(character));
+            if (s.matches("[а-яА-Яa-zA-Z ]{1}") || s.matches("[\\d ]{1,3}") || s.matches("[ivxVXI ]+]") ||s.isEmpty()) {
+                if (around!= null) {
+                    double num = 0.0;
+                    for (P pa : around) {
+                        if (isInList(pa, null))
+                            num++;
+                    }
+                    return (num/around.length>=0.5);
+                }
+                else return true;
+            }
+        }
+        return false;
+    }
+
+    public static  boolean sameEnumeration (P previous, P p) {
+        String s = getText(p);
+        String character  = (s.contains("."))?".":(s.contains(")"))?")":"-";
+        s = s.substring(0, s.indexOf(character));
+        int enumer = (s.matches("[а-я]{1}"))? 1 : (s.matches("\\d{1,3}"))? 2 : (s.matches("[ivxVXI ]+]")) ? 3 : 4;
+        s = getText(previous);
+        String character2 = (s.contains("."))?".":(s.contains(")"))?")":"-";
+        s = s.substring(0, s.indexOf(character2));
+        int enumer2 = (s.matches("[а-я]{1}"))? 1 : (s.matches("\\d{1,3}"))? 2 : (s.matches("[ivxVXI ]+]")) ? 3 : 4;
+        return enumer==enumer2 && character.equals(character2);
+
+    }
+
+    public static void removeEnum (P p) {
+        if (getLevelInList(p).intValue()!= -1 && getNumIDInList(p).intValue()!= -1) {
+            p.getPPr().setNumPr(null);
+            return;
+        }
+        String s = getText(p);
+        if (s.contains(".")) {
+            s = s.substring(s.indexOf("."), s.length()-1);
+            setText(p, s, true);
+            return;
+        }
+        if (s.contains("-")) {
+            s = s.substring(s.indexOf("."), s.length()-1);
+            setText(p, s, true);
+            return;
+        }
+        if (s.contains(")")) {
+            s = s.substring(s.indexOf("."), s.length()-1);
+            setText(p, s, true);
+            return;
+        }
+    }
+
+    public static void addTab (P p) {
+        List<Object> contents = p.getContent();
+        contents.add(0, factory.createRTab());
+    }
+
+    public static void deleteTabsInParagraph (P p) {
+        List<Object> content = p.getContent();
+        for (Object o : content) {
+            if (o instanceof R.Tab) {
+                content.remove(o);
+            }
+        }
     }
 }

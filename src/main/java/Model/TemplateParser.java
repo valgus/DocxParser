@@ -46,7 +46,7 @@ public class TemplateParser {
             int lvl = DocBase.getLevelInList(p).intValue();
             int id =  DocBase.getNumIDInList(p).intValue();
             if (id != -1) {
-                Title currentTitle = new Title(lvl == -1? lvl+1:lvl, DocBase.getText(p), DocBase.getAttributes(p));
+                Title currentTitle = new Title(lvl, DocBase.getText(p), DocBase.getAttributes(p));
                 titles.add(currentTitle);
             }
             if (isTitle(p)) {
@@ -60,7 +60,7 @@ public class TemplateParser {
 
 
 
-
+//lvl == -1? lvl+1:
 }
 
 
