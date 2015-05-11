@@ -406,7 +406,7 @@ public final class DocBase {
         return p;
     }
 
-    public static P makePageBr() throws Exception {
+    public static P makePageBr() {
         P p = factory.createP();
         R r = factory.createR();
         Br br = factory.createBr();

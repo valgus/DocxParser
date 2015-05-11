@@ -1,8 +1,10 @@
 package Model;
 
 import org.docx4j.jaxb.Context;
+import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.Part;
+import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.*;
@@ -10,34 +12,50 @@ import org.docx4j.wml.*;
 import javax.xml.bind.JAXBElement;
 import javax.xml.namespace.QName;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.math.BigInteger;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainPart {
 
     File template, compared;
-    boolean exist = false;
     ObjectFactory factory = Context.getWmlObjectFactory();
+    ProcessDocument process;
 
 
-    public void setTwoDocx(String template, String compared) {
+    public void setTwoDocx(String template, File compared, ProcessDocument process) {
         this.template = new File(template);
-        this.compared = new File(compared);
-        exist = true;
+        this.compared = compared;
+        this.process = process;
+}
+
+    public boolean sendIndfo(String s) {
+        return process.sendInfo(s);
     }
 
-    public WordprocessingMLPackage setAppropriateText() throws Exception {
-        WordprocessingMLPackage document  = DocxMethods.getTemplate(compared.getAbsolutePath());
+    public WordprocessingMLPackage setAppropriateText() {
+        WordprocessingMLPackage document  = null;
+        try {
+            document = DocxMethods.getTemplate(compared.getAbsolutePath());
+        } catch (Docx4JException e) {
+            sendIndfo("rerun process");
+        } catch (FileNotFoundException e) {
+            sendIndfo("rerun process");
+
+        }
         //set Pade margins and size
         DocxMethods.setPageMargins(document);
         //delete contents of header and footer
         document = DocxMethods.cleanHeaderFooter(document);
-        if (!exist) throw new Exception();
         List<Title> titles = TemplateParser.getListOfTitles(template.getAbsolutePath());
         List<Object> documentParagraphes = DocxMethods.getAllElementFromObject(document.getMainDocumentPart(), P.class);
         Map<Integer, P> corespondences = findCorespondences(document, documentParagraphes, titles);
-        if (corespondences.size() == 0)
-            throw new Exception("Файл не соответствует шаблону!");
+        if (corespondences.size() == 0) {
+            sendIndfo("Файл не соответствует шаблону!");
+            return null;
+        }
             int indexOfTableOfContent = -1;
             Collection<P> values = corespondences.values();
             Iterator it = values.iterator();
@@ -81,7 +99,7 @@ public class MainPart {
             if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null) {
                 DocBase.deleteTabsInParagraph(p);
                 DocBase.addTab(p);
-                DocBase.setStyle(p, "28","Times New Roman", null, null, null, 0, "LEFT", false);
+                DocBase.setStyle(p, "24","Times New Roman", null, null, null, 0, "LEFT", false);
             }
         }
 
@@ -92,7 +110,7 @@ public class MainPart {
                 DocBase.setHighlight(p, null);
             }
         }
-
+        processImage(document.getMainDocumentPart());
         //set table of contents
         P paragraphForTOC = factory.createP();
         R r = factory.createR();
@@ -176,6 +194,10 @@ public class MainPart {
                 if (currentLevel!= -1 && currentNumId!=-1) {
                     if (data.size()==0) {
                         data.put(i, 1);
+                        String s = DocBase.getText((P)documentParagraphes.get(i-1));
+                        if (!s.endsWith(":") && (s.endsWith(".") || s.endsWith(";") || s.endsWith("!"))) {
+                            DocBase.setText(p, s.substring(0, s.length()-1) + ":", true );
+                        }
                     }
                     else {
                         Integer previous = data.get(i-1);
@@ -192,6 +214,10 @@ public class MainPart {
                         }
                         else
                             data.put(i, 1);
+                            String s = DocBase.getText((P)documentParagraphes.get(i-1));
+                            if (!s.endsWith(":") && (s.endsWith(".") || s.endsWith(";") || s.endsWith("!"))) {
+                                DocBase.setText(p, s.substring(0, s.length()-1) + ":", true );
+                            }
                     }
                 }
                 else {
@@ -208,6 +234,10 @@ public class MainPart {
                     if (DocBase.isInList(p, around)) {
                         if (data.size()==0) {
                             data.put(i, 1);
+                            String s = DocBase.getText((P)documentParagraphes.get(i-1));
+                            if (!s.endsWith(":") && (s.endsWith(".") || s.endsWith(";") || s.endsWith("!"))) {
+                                DocBase.setText(p, s.substring(0, s.length() - 1) + ":", true);
+                            }
                         }
                         else {
                             Integer previous = data.get(i-1);
@@ -220,6 +250,10 @@ public class MainPart {
                             }
                             else {
                                 data.put(i, 1);
+                                String s = DocBase.getText((P)documentParagraphes.get(i-1));
+                                if (!s.endsWith(":") && (s.endsWith(".") || s.endsWith(";") || s.endsWith("!"))) {
+                                    DocBase.setText(p, s.substring(0, s.length()-1) + ":", true );
+                                }
                             }
                         }
                     }
@@ -271,5 +305,153 @@ public class MainPart {
             if (!it.hasNext())
                 DocBase.setText(p, ".", false);
         }
+    }
+
+    private void processImage (MainDocumentPart mdp) {
+        int number = 0;
+        List<Object> contens;
+        Object o1 = null, o2 = null;
+        for (int i = 0; i < mdp.getContent().size(); i++) {
+            Object o = mdp.getContent().get(i);
+            contens = DocxMethods.getAllElementFromObject(o, Drawing.class);
+            if (contens.size() != 0) {
+                number++;
+               if (i!= 0) o1 = mdp.getContent().get(i-1);
+                if (i != mdp.getContent().size()-1) o2 = mdp.getContent().get(i-1);
+                boolean isName1 = false, isName2 = false;
+                String s = "";
+                if (o1!= null && o1 instanceof P) {
+                    s = DocBase.getText((P)o1);
+                    if (s.toLowerCase().contains("рис") || s.toLowerCase().contains("рисунок")) {
+                        if (!s.toLowerCase().contains("см.")&&!s.toLowerCase().contains("смотри")
+                                &&!s.toLowerCase().contains("котор")&& !s.toLowerCase().contains("(")&&
+                                s.indexOf("(")!= 0)
+                            isName1 = true;
+                    }
+                }
+                if (o2 != null && o2 instanceof P) {
+                    s = DocBase.getText((P)o1);
+                    if (s.toLowerCase().contains("рис") || s.toLowerCase().contains("рисунок") || s.toLowerCase().
+                            contains("Илюстрация") || s.toLowerCase().contains("Граф")) {
+                        if (!s.toLowerCase().contains("см.")&&!s.toLowerCase().contains("смотри")
+                                &&!s.toLowerCase().contains("котор")&& !s.toLowerCase().contains("(")&&
+                                s.indexOf("(")!= 0)
+                            isName2 = true;
+                    }
+                }
+                if (isName1) {
+                    s = DocBase.getText((P)o1);
+                    mdp.getContent().remove(o1);
+                }
+                if (isName1 || isName2) {
+//                    s = s.replaceAll("Рисунок", "");
+//                    s = s.replaceAll("Рис", "");
+//                    s = s.replaceAll("Илюстрация", "");
+//                    s = s.replaceAll("Граф","");
+                    Pattern p = Pattern.compile("\\d [: -\".,=]*");
+                    Matcher m = p.matcher(s);
+                    int lastDigit = m.regionEnd();
+                    String name = s.substring(lastDigit, s.length()-1);
+                    if (isName2) {
+                        if (DocBase.getText((P)o2).matches("Рисунок \\d -[\\s\\S]")) {
+                            break;
+                        }
+                    }
+                    P pWithName = factory.createP();
+                    DocBase.setText(pWithName, "Рисунок" + number +" - "+name, false);
+                    mdp.getContent().add(i+1, createIt());
+                }                
+            }
+        }
+    }
+    public P createIt() {
+        P p = factory.createP();
+        // Create object for r
+        R r = factory.createR();
+        p.getContent().add(r);
+        // Create object for t (wrapped in JAXBElement)
+        Text text = factory.createText();
+        JAXBElement<org.docx4j.wml.Text> textWrapped = factory
+                .createRT(text);
+        r.getContent().add(textWrapped);
+        text.setValue("Figure ");
+        text.setSpace("preserve");
+        // Create object for fldSimple (wrapped in JAXBElement)
+        CTSimpleField simplefield = factory.createCTSimpleField();
+        JAXBElement<org.docx4j.wml.CTSimpleField> simplefieldWrapped = factory
+                .createPFldSimple(simplefield);
+        p.getContent().add(simplefieldWrapped);
+        // Create object for r
+        R r2 = factory.createR();
+        simplefield.getContent().add(r2);
+        // Create object for t (wrapped in JAXBElement)
+        Text text2 = factory.createText();
+        JAXBElement<org.docx4j.wml.Text> textWrapped2 = factory
+                .createRT(text2);
+        r2.getContent().add(textWrapped2);
+        text2.setValue("1");
+        // Create object for rPr
+        RPr rpr = factory.createRPr();
+        r2.setRPr(rpr);
+        // Create object for noProof
+        BooleanDefaultTrue booleandefaulttrue = factory
+                .createBooleanDefaultTrue();
+        rpr.setNoProof(booleandefaulttrue);
+        simplefield.setInstr(" SEQ Figure \\* ARABIC ");
+        // Create object for r
+        R r3 = factory.createR();
+        p.getContent().add(r3);
+        // Create object for t (wrapped in JAXBElement)
+        Text text3 = factory.createText();
+        JAXBElement<org.docx4j.wml.Text> textWrapped3 = factory
+                .createRT(text3);
+        r3.getContent().add(textWrapped3);
+        text3.setValue(" ");
+        text3.setSpace("preserve");
+        // Create object for r
+        R r4 = factory.createR();
+        p.getContent().add(r4);
+        // Create object for t (wrapped in JAXBElement)
+        Text text4 = factory.createText();
+        JAXBElement<org.docx4j.wml.Text> textWrapped4 = factory
+                .createRT(text4);
+        r4.getContent().add(textWrapped4);
+        text4.setValue("–");
+        // Create object for r
+        R r5 = factory.createR();
+        p.getContent().add(r5);
+        // Create object for t (wrapped in JAXBElement)
+        Text text5 = factory.createText();
+        JAXBElement<org.docx4j.wml.Text> textWrapped5 = factory
+                .createRT(text5);
+        r5.getContent().add(textWrapped5);
+        text5.setValue("This is the caption of the figure");
+        text5.setSpace("preserve");
+        // Create object for bookmarkStart (wrapped in JAXBElement)
+        CTBookmark bookmark = factory.createCTBookmark();
+        JAXBElement<org.docx4j.wml.CTBookmark> bookmarkWrapped = factory
+                .createPBookmarkStart(bookmark);
+        p.getContent().add(bookmarkWrapped);
+        bookmark.setName("_GoBack");
+        bookmark.setId(BigInteger.valueOf(0));
+        // Create object for bookmarkEnd (wrapped in JAXBElement)
+        CTMarkupRange markuprange = factory.createCTMarkupRange();
+        JAXBElement<org.docx4j.wml.CTMarkupRange> markuprangeWrapped = factory
+                .createPBookmarkEnd(markuprange);
+        p.getContent().add(markuprangeWrapped);
+        markuprange.setId(BigInteger.valueOf(0));
+        // Create object for pPr
+        PPr ppr = factory.createPPr();
+        p.setPPr(ppr);
+        // Create object for pStyle
+        PPrBase.PStyle pprbasepstyle = factory.createPPrBasePStyle();
+        ppr.setPStyle(pprbasepstyle);
+        pprbasepstyle.setVal("Caption");
+        // Create object for jc
+        Jc jc = factory.createJc();
+        ppr.setJc(jc);
+        jc.setVal(org.docx4j.wml.JcEnumeration.CENTER);
+
+        return p;
     }
 }

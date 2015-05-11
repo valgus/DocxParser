@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane fx:id="root" xmlns:fx="http://javafx.com/fxml" fx:controller="View2.Vista1Controller">
+    <top>
+        <HBox maxHeight="25.0" spacing="10" minHeight="25.0" prefHeight="25.0" style="-fx-background-color: #0074C6; -fx-padding: 2 5 2 5"
+              alignment="BOTTOM_RIGHT">
+            <Button fx:id="minimize" text="_" alignment="CENTER" maxHeight="20.0"
+                    minHeight="20.0" prefHeight="20.0" maxWidth="20.0" minWidth="20.0" prefWidth="20.0"/>
+            <Button fx:id="close" text="x" onAction="#close" alignment="CENTER" maxHeight="20.0" minHeight="20.0"
+                    prefHeight="20.0" maxWidth="20.0" minWidth="20.0" prefWidth="20.0"/>
+        </HBox>
+    </top>
+    <center>
+        <BorderPane fx:id="border">
+            <top>
+                <HBox fx:id="hbox" spacing="5" maxHeight="40.0" minHeight="40.0" prefHeight="40.0"
+                      style="-fx-background-color: #FFF;">
+                    <Button fx:id="loadFile" text="Загрузить..." onAction="#loadFile"/>
+                    <Label fx:id="docName" visible="false"/>
+                    <padding>
+                        <Insets top="5" bottom="5" left="5" right="5" />
+                    </padding>
+                </HBox>
+            </top>
+            <center>
+                <VBox fx:id="center" alignment="CENTER">
+                    <padding>
+                        <Insets top="10" bottom="10" left="10" right="10" />
+                    </padding>
+
+                    <HBox spacing="5" alignment="CENTER">
+                        <padding>
+                            <Insets top="2" bottom="2" left="2" right="2" />
+                        </padding>
+                        <Label text="ГОСТ:"/>
+                        <ComboBox fx:id="gostChooser" onAction="#chooseGost" editable="false"/>
+                    </HBox>
+                    <HBox alignment="CENTER">
+                        <padding>
+                            <Insets top="2" bottom="2" left="2" right="2" />
+                        </padding>
+                        <Label text="Документ:"/>
+                        <ComboBox fx:id="docChooser" onAction="#chooseDoc" editable="false" disable="true"/>
+                    </HBox>
+                    <Label text="Название программы:"/>
+                    <TextField  fx:id="name" text="Здесь.." onAction="#setName"/>
+                    <Label fx:id="stillDisabled"/>
+                    <Button fx:id="process" text="Обработать документ"/>
+                </VBox>
+            </center>
+            <bottom>
+                <VBox  maxHeight="40.0" minHeight="40.0" prefHeight="40.0" alignment="CENTER"
+                       style="-fx-background-color: #FFF;">
+                    <HBox alignment="CENTER" spacing="10" style="-fx-background-color: #FFF;">
+                        <Label fx:id="procent" text="0%" visible="false"/>
+                        <ProgressBar fx:id="progress" layoutX="100" layoutY="171.5" prefWidth="200" minWidth="200"
+                                visible="false"/>
+                    </HBox>
+                </VBox>
+            </bottom>
+        </BorderPane>
+    </center>
+    <right><StackPane maxWidth="5.0" minWidth="5.0" prefWidth="5.0" style="-fx-background-color: #0074C6;"/></right>
+    <left><StackPane maxWidth="5.0" minWidth="5.0" prefWidth="5.0" style="-fx-background-color: #0074C6;"/></left>
+    <bottom><StackPane maxHeight="25.0" minHeight="25.0" prefHeight="25.0" style="-fx-background-color: #0074C6;"/></bottom>
+</BorderPane>

@@ -142,7 +142,7 @@ public final class DocxMethods {
         return  ( 1440 * pixels / getDPI() );
     }
 
-    public static WordprocessingMLPackage cleanHeaderFooter(WordprocessingMLPackage word) throws Exception {
+    public static WordprocessingMLPackage cleanHeaderFooter(WordprocessingMLPackage word)  {
         MainDocumentPart mdp = word.getMainDocumentPart();
         SectPrFinder finder = new SectPrFinder(mdp);
         new TraversalUtil(mdp.getContent(), finder);
@@ -162,10 +162,7 @@ public final class DocxMethods {
         for (Relationship rel : hfRels ) {
             mdp.getRelationshipsPart().removeRelationship(rel);
         }
-
-        word.save(new File("temp.docx"));
-        Relationship relationship = createHeaderPart(word);
-        return getTemplate("temp.docx");
+        return word;
     }
 
     public  static P newImage(WordprocessingMLPackage doc, File file) {
@@ -232,41 +229,4 @@ public final class DocxMethods {
 
     }
 
-    public static Relationship createHeaderPart(
-            WordprocessingMLPackage wordprocessingMLPackage)
-            throws Exception {
-
-        HeaderPart headerPart = new HeaderPart();
-        headerPart.setPackage(wordprocessingMLPackage);
-        headerPart.setJaxbElement(getHdr(wordprocessingMLPackage, headerPart));
-        return wordprocessingMLPackage.getMainDocumentPart()
-                .addTargetPart(headerPart);
-
-    }
-
-    public static Hdr getHdr(WordprocessingMLPackage wordprocessingMLPackage,
-                             Part sourcePart) throws Exception {
-
-        String ftrXml="<w:hdr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
-                                "<w:p>" +
-                                    "<w:pPr>" +
-                                         "<w:pStyle w:val=\"Header\"/>" +
-                                        "<w:jc w:val=\"center\"/>" +
-                                    "</w:pPr>" +
-                                    "<w:fldSimple w:instr=\" PAGE \\* MERGEFORMAT \">" +
-                                        "<w:r>" +
-                                            "<w:rPr>" +
-                                                "<w:noProof/>" +
-                                            "</w:rPr>" +
-                                            "<w:t>17</w:t>" +
-                                        "</w:r>" +
-                                    "</w:fldSimple>" +
-                                "</w:p>" +
-                    "</w:hdr>";
-
-
-        Hdr header = (Hdr)XmlUtils.unmarshalString(ftrXml);
-        return header;
-
-    }
 }

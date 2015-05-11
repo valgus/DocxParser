@@ -1,23 +1,16 @@
 package Model;
 
 import org.docx4j.convert.out.common.preprocess.CoverPageSectPrMover;
-import org.docx4j.convert.out.common.preprocess.ParagraphStylesInTableFix;
-import org.docx4j.dml.wordprocessingDrawing.Inline;
 import org.docx4j.jaxb.Context;
 import org.docx4j.model.structure.PageDimensions;
-import org.docx4j.model.table.TblFactory;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
-import org.docx4j.openpackaging.exceptions.InvalidFormatException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
-import org.docx4j.openpackaging.parts.WordprocessingML.BinaryPartAbstractImage;
-import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.wml.*;
 
-import javax.xml.bind.JAXBException;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 
 public class EditingFirstPages {
@@ -36,7 +29,6 @@ public class EditingFirstPages {
     private  String name;      // название документа
     private  String subName;   // тип программы
     private  String company;
-    private  boolean setType = false;
     private  String albom;
     private  String agreement;
     private  String approve;
@@ -44,11 +36,36 @@ public class EditingFirstPages {
     private  int bound = -1;
     //------------------------------
     private int pageWidth = new PageDimensions().getWritableWidthTwips();
+    private ProcessDocument process;
 
+    public boolean sendIndfo(String s) {
+        return process.sendInfo(s);
+    }
 
-    public WordprocessingMLPackage processDoc () throws Exception {
-        if (doc == null)
-            throw new Exception("Docx is empty");
+    public EditingFirstPages(WordprocessingMLPackage doc, String typeOfDoc, int numGOST, String name,
+                             ProcessDocument process){
+        factory = Context.getWmlObjectFactory();
+        this.doc = doc;
+        this.type = typeOfDoc;
+        this.numGOST = numGOST;
+        this.name = name;
+        this.process = process;
+        nPages = "Листов -количество-";
+        letter = "Литера";
+        medium = "(вид носителя данных)";
+        docNumber = "номер документа";
+        subName = "Наименование документа";
+        company = "Наименование министерства или ведомства, " +
+                "в систему которого входит организация, разработавшая данный документ";
+        agreement = "СОГЛАСОВАНО \n (подпись) \t ФИО \n дата";
+        approve = "УТВЕРЖДАЮ \n (подпись) \t ФИО \n дата";
+    }
+
+    public WordprocessingMLPackage process()throws Exception{
+        if (doc == null) {
+            sendIndfo("Docx is empty");
+            return null;
+        }
         CoverPageSectPrMover.process(doc);
         List<P> docPara = DocBase.deleteEmptyPara(DocxMethods.createParagraphJAXBNodes(doc));
         String s;
@@ -72,71 +89,80 @@ public class EditingFirstPages {
                     letterIndex!=-1 && i - letterIndex > 10)
                 break;
         }
-        if (year == null && letter == null)
-            throw new Exception("year or letter must be set");
+        if (year == null && letter == null) {
+            boolean is = sendIndfo("year or letter must be set");
+            if (is) {
+                year = "ДАТА";
+                yearIndex = 0;
+
+            }
+        }
         if (year!=null && letter != null )
             if (letterIndex - yearIndex == 2)
                 changeString = DocBase.getText(docPara.get(letterIndex - yearIndex));
-        Attempt a = new Attempt(docPara.subList(0, (yearIndex!= -1)?yearIndex : letterIndex),
-                type, numGOST, name);
-        a.maa();
-        nPages = a.getPageNumber();
-        medium = a.getMedium();
-        docNumber = a.getDocNumber();
-        if (docNumber.equals("")) {
-            docNumber = "номер документа{wrong}";
-        }
-        else {
-            if (!docNumber.toLowerCase().contains("-лу"))
-                docNumber+="-ЛУ";
-        }
-        subName = a.getSubName();
-        company = a.getNameOfCompany();
-        setType = a.isSetType();
-        agreement = a.getAgreement();
-        approve = a.getApprove();
-        remained = a.getRemained();
-        albom = a.getAlbom();
+        if (yearIndex!= 0 &&  yearIndex!= -1  || letterIndex != -1) {
+            ProcessorOfTitles a = new ProcessorOfTitles(docPara.subList(0, (yearIndex!= -1)?yearIndex : letterIndex),
+                    type, numGOST, name, process);
+            String res = a.findMainElements();
+            if (res == null) {
+                if (!a.getPageNumber().equals("")) nPages = a.getPageNumber();
+                if (!a.getMedium().equals("")) medium = a.getMedium();
+                if (!a.getDocNumber().equals("")) docNumber = a.getDocNumber();
+                if (docNumber.equals("")) {
+                    docNumber = "номер документа{wrong}";
+                }
+                else {
+                    if (!docNumber.toLowerCase().contains("-лу"))
+                        docNumber+="-ЛУ";
+                }
+                if (!a.getSubName().equals("")) subName = a.getSubName();
+                if (!a.getNameOfCompany().equals("")) company = a.getNameOfCompany();
+                if (!a.getAgreement().equals("")) agreement = a.getAgreement();
+                if (!a.getApprove().equals("")) approve = a.getApprove();
+                remained = a.getRemained();
+                if (!a.getAlbom().equals("")) albom = a.getAlbom();
 
-        if (!checkForRIGHTAlign()) {
-            findInTableParagraphs();
-        }
+                if (!checkForRIGHTAlign()) {
+                    findInTableParagraphs();
+                }
+            }
 
-        int year2Index = -1;
-        int temp = ((yearIndex != -1) ? yearIndex : letterIndex) + 1;
-        for (int i = temp; i < ((4*temp <docPara.size())?4*temp:docPara.size()); i++) {
-            s = DocBase.getText(docPara.get(i));
-            if (s.equals(year)) {
-                year2Index = i;
-                break;
+            int year2Index = -1;
+            int temp = ((yearIndex != -1) ? yearIndex : letterIndex) + 1;
+            for (int i = temp; i < ((4*temp <docPara.size())?4*temp:docPara.size()); i++) {
+                s = DocBase.getText(docPara.get(i));
+                if (s.equals(year)) {
+                    year2Index = i;
+                    break;
+                }
             }
-        }
-        int indexToFind = (year2Index == -1)? temp+1 : year2Index;
-        Object o = DocxMethods.getParagraphFromIndex(doc.getMainDocumentPart(), indexToFind);
-        int toIndex = 0;
-        for (int i = 0; i<  doc.getMainDocumentPart().getContent().size(); i++) {
-            List<Object> contents = DocxMethods.getAllElementFromObject(doc.getMainDocumentPart().getContent()
-                    .get(i), P.class);
-            if (contents.contains(o) && DocxMethods.getIndexOfParagraph(doc.getMainDocumentPart(),(P)o) == indexToFind ) {
-                toIndex = i;
-                break;
+            int indexToFind = (year2Index == -1)? temp+1 : year2Index;
+            Object o = DocxMethods.getParagraphFromIndex(doc.getMainDocumentPart(), indexToFind);
+            int toIndex = 0;
+            for (int i = 0; i<  doc.getMainDocumentPart().getContent().size(); i++) {
+                List<Object> contents = DocxMethods.getAllElementFromObject(doc.getMainDocumentPart().getContent()
+                        .get(i), P.class);
+                if (contents.contains(o) && DocxMethods.getIndexOfParagraph(doc.getMainDocumentPart(),(P)o) == indexToFind ) {
+                    toIndex = i;
+                    break;
+                }
             }
-        }
-        for (int i = 0; i<= toIndex; i++) {
-            doc.getMainDocumentPart().getContent().remove(doc.getMainDocumentPart().getContent().get(0));
-        }
-        while (true) {
-            if (doc.getMainDocumentPart().getContent().get(0) instanceof P) {
-                P p = (P)doc.getMainDocumentPart().getContent().get(0);
-                s = DocBase.getText(p);
-                if (s.isEmpty() || s.matches("[ ]*")) {
-                    doc.getMainDocumentPart().getContent().remove(doc.getMainDocumentPart().getContent().get(0));
+            for (int i = 0; i<= toIndex; i++) {
+                doc.getMainDocumentPart().getContent().remove(doc.getMainDocumentPart().getContent().get(0));
+            }
+            while (true) {
+                if (doc.getMainDocumentPart().getContent().get(0) instanceof P) {
+                    P p = (P)doc.getMainDocumentPart().getContent().get(0);
+                    s = DocBase.getText(p);
+                    if (s.isEmpty() || s.matches("[ ]*")) {
+                        doc.getMainDocumentPart().getContent().remove(doc.getMainDocumentPart().getContent().get(0));
+                    }
+                    else
+                        break;
                 }
                 else
                     break;
             }
-            else
-                break;
         }
         setFirstPage();
         setSecondPage();
@@ -147,16 +173,7 @@ public class EditingFirstPages {
         return doc;
     }
 
-    public EditingFirstPages(WordprocessingMLPackage doc, String typeOfDoc, int numGOST, String name){
-        factory = Context.getWmlObjectFactory();
-        this.doc = doc;
-        this.type = typeOfDoc;
-        this.numGOST = numGOST;
-        this.name = name;
-    }
-
-
-    private  void setFirstPage() throws Exception {
+    private  void setFirstPage() {
 
 
         CTVerticalJc ctVerticalJc = new CTVerticalJc();
@@ -203,16 +220,15 @@ public class EditingFirstPages {
         pr3[i] = setP("","Times New Roman", null, null, null, 240, null, null, false, false);i++;
         pr3[i] = setP(name.toUpperCase(), "Times New Roman",null, null, null, 240, "CENTER", "28", false, false); i++;
         pr3[i] = setP("", "Arial",null, null, null, 240, null, "24", false, false);i++;
-        if (!(subName == null) && !subName.equals("") && !subName.isEmpty()) {
+        if (!(subName == null) && !subName.equals("") && !subName.isEmpty() && !subName.equals("Наименование документа")) {
             pr3[i] = setP(subName, "Arial",null, null, null,240, "CENTER", "24", false, true); i++;}
-        if (setType) {
-            pr3[i] = setP(type, "Arial", null, null, null, 360, "CENTER", "24", false, false); i++;}
+        pr3[i] = setP(type, "Arial", null, null, null, 360, "CENTER", "24", false, false); i++;
         if (albom!= null && !albom.isEmpty() && !albom.equals("")) {
             pr3[i] =  setP(albom, "Arial", null, null, null, 360, "CENTER", "24", false, true); i++;}
         pr3[i] = setP("ЛИСТ УТВЕРЖДЕНИЯ", "Arial", null, null, null, 360, "CENTER", "32", false, true);i++;
         pr3[i] = setP(docNumber.replace("{wrong}", ""),
                 "Arial", null, null, null, 360, "CENTER", null, docNumber.contains("{wrong}"), true);i++;
-        if (!(medium == null) && !medium.equals("")) {setP(medium, "Arial",null,
+        if (!(medium == null) && !medium.equals("") && !medium.equals("(вид носителя данных)")) {setP(medium, "Arial",null,
                 null, null, 360, "CENTER", null, false, true); i++;}
         pr3[i] = setP("", "Arial", null, null, null, 360, "CENTER", "20", false, false);i++;
         if (!nPages.isEmpty()) {
@@ -223,7 +239,8 @@ public class EditingFirstPages {
 
         P[] pr4 = null;
         P[] pr5 = null;
-        List<String> remainStrings = DocBase.changeToString(remained);
+        List<String> remainStrings = new ArrayList<>();
+        if (remained!= null && remained.size()!=0) remainStrings = DocBase.changeToString(remained);
         if (bound != -1) {
             pr4 = new P[bound+1];
             pr4[0] = setP("СОГЛАСОВАНО","Times New Roman", null, null, null, 240, null, null, false, false);
@@ -250,8 +267,13 @@ public class EditingFirstPages {
                 (int)(pageWidth*0.2), 3));
         table.getContent().add(addRowWithMergedCells(false, null, pr6, null, 0, (int)(pageWidth*0.5), 0, 4));
         doc.getMainDocumentPart().getContent().add(0,table);
-      //  doc.getMainDocumentPart().getContent().add(1, DocBase.makePageBr());
-        SectPr sectPr= HeaderFooter.process(doc);
+      //  template.getMainDocumentPart().getContent().add(1, DocBase.makePageBr());
+        SectPr sectPr= null;
+        try {
+            sectPr = HeaderFooter.process(doc);
+        } catch (Exception e) {
+            sendIndfo(e.getMessage());
+        }
         CTPageNumber pageNumber = sectPr.getPgNumType();
         if (pageNumber==null) {
             pageNumber = Context.getWmlObjectFactory().createCTPageNumber();
@@ -267,7 +289,7 @@ public class EditingFirstPages {
 
     }
     private  void setSecondPage() {
-        //   doc.getMainDocumentPart().getContent().add(setP("", "Times New Roman", null, null, null, 480, null, null));
+        //   template.getMainDocumentPart().getContent().add(setP("", "Times New Roman", null, null, null, 480, null, null));
 //        newDoc.getMainDocumentPart().getContent().add(setP("",
 //                "Times New Roman", null, null, null, 480, null, null, false, false));
 //        newDoc.getMainDocumentPart().getContent().add(setP("",
@@ -307,15 +329,15 @@ public class EditingFirstPages {
         pr3[i] = setP("","Times New Roman", null, null, null, 240, null, null, false, false);i++;
         pr3[i] = setP(name.toUpperCase(), "Times New Roman",null, null, null, 240, "CENTER", null, false, false); i++;
         pr3[i] = setP("", "Arial",null, null, null, 240, null, null, false, false);i++;
-        if (!(subName == null) && !subName.equals("")) {
+        if (!(subName == null) && !subName.equals("") && !subName.equals("Наименование документа")) {
             pr3[i] = setP(subName, "Arial",null, null, null,240, "CENTER", null, false, true); i++;}
-        if (setType) {
-            pr3[i] = setP(type, "Arial", null, null, null, 360, "CENTER", "24", false, false); i++;}
+
+        pr3[i] = setP(type, "Arial", null, null, null, 360, "CENTER", "24", false, false); i++;
         if (albom!= null && !albom.isEmpty() && !albom.equals("")) {
             pr3[i] =  setP(albom, "Arial", null, null, null, 360, "CENTER", "24", false, true); i++;}
         pr3[i] = setP(docNumber.replace("{wrong}", "").replace("-ЛУ",""),
                 "Arial", null, null, null, 360, "CENTER", null, docNumber.contains("{wrong}"), true);i++;
-        if (!(medium == null) && !medium.equals("")) {setP(medium, "Arial",null,
+        if (!(medium == null) && !medium.equals("")&& !medium.equals("(вид носителя данных)")) {setP(medium, "Arial",null,
                 null, null, 360, "CENTER", null, false, true); i++;}
         pr3[i] = setP("", "Arial", null, null, null, 360, "CENTER", "20", false, false);i++;
         if (!nPages.isEmpty()) {
@@ -494,9 +516,9 @@ public class EditingFirstPages {
                 }
             }
         } catch (Docx4JException e) {
-            e.printStackTrace();
+            sendIndfo(e.getMessage());
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+           sendIndfo(e.getMessage());
         }
 
     }

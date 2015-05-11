@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class Attempt {
+public class ProcessorOfTitles {
 
 
     private List<P> firstPage;
@@ -34,9 +34,13 @@ public class Attempt {
     private String medium;
     private String subName;
     private List<P> remained;
+    private ProcessDocument process;
 
+    public boolean sendIndfo(String s) {
+        return process.sendInfo(s);
+    }
 
-    public Attempt (List<P> firstPage, String type, int GOSTnumber, String name) {
+    public ProcessorOfTitles(List<P> firstPage, String type, int GOSTnumber, String name, ProcessDocument process) {
         this.firstPage = new ArrayList<>(firstPage);
         this.remained = new ArrayList<>();
         docNumber = "";
@@ -55,25 +59,34 @@ public class Attempt {
         approveIndex  = -1;
         docNumberIndex = -1;
         pageNumberIndex = -1;
+        nameOfCompany = "";
         this.type = type;
         this.GOSTnumber = GOSTnumber;
         this.name = name;
+        this.process = process;
 
     }
-    void maa() throws Exception {
+    String findMainElements() throws Exception{
         String s;
-        for (int i = 0; i < firstPage.size(); i++) {
+        String res = null;
+        for (int i = 0; i < firstPage.size(); i++)  {
             s = DocBase.getText(firstPage.get(i));
             if (s.toLowerCase().equals("лист утверждения") || ngrammPossibility(s, "лист утверждения") >=0.5 ) {
                 isFirstpage = true;
                 index = i;
             }
         }
-        if (!isFirstpage)
-            throw new Exception("Is not the first page!");
+        if (!isFirstpage) {
+            boolean is = sendIndfo("Is not the first page!");
+            if (is)
+                res =  "Создать пустой лист утверждения";
+        }
         indexName = findName(0);
-        if (indexName == null || indexName.size() == 0)
-            throw new Exception("The inserted name is not correct");
+        if (indexName == null || indexName.size() == 0) {
+            sendIndfo("The inserted name is not correct");
+            throw new Exception();
+
+        }
         findType();
         findAgreementsAndApprove();
         if (agreementIndexes[0] != -1) {
@@ -85,6 +98,7 @@ public class Attempt {
         setPageNumber();
         setSubNameAndMedium();
         setRemained();
+        return  res;
     }
 
 
@@ -140,8 +154,13 @@ public class Attempt {
                     indexes.add(i);
                     indexes.addAll(findName(i));
                     return indexes;
+                }else
+                if (ngrammPossibility(name, s) >= 0.5) {
+                    indexes.add(i);
+                    return indexes;
                 }
             }
+
 
         }
         return null;
