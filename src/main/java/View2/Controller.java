@@ -29,7 +29,7 @@ import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 
 
-public class Vista1Controller {
+public class Controller {
 
     @FXML private BorderPane root;
     @FXML private BorderPane border;
@@ -46,12 +46,14 @@ public class Vista1Controller {
     private int gostNumber;
     private String doc;
     private Document document;
-    private Vista1Controller controller = this;
+    private Controller controller = this;
     final BlockingQueue<Object> messageQueue = new ArrayBlockingQueue<>(1);
+    final BlockingQueue<Boolean> messageQueue2 = new ArrayBlockingQueue<>(1);
     private static double xOffset = 0;
     private static double yOffset = 0;
+    AnimationTimer timer;
     // ************ Initialization *************
-
+    static final Object sync = new Object();
     public void initialize() {
 
         gostNumber = 0;
@@ -69,8 +71,9 @@ public class Vista1Controller {
                     stillDisabled.setText("Все хорошо!");
                     progress.setVisible(true);
                     procent.setVisible(true);
-                    ProcessDocument processDocument = new ProcessDocument(document, file, name.getText(), controller,
-                            doc, messageQueue);
+
+                    ProcessDocument processDocument = new ProcessDocument(document, file, name.getText(),
+                            doc, messageQueue, messageQueue2,  sync);
                     Thread app = new Thread(processDocument);
                     app.start();
 
@@ -78,31 +81,47 @@ public class Vista1Controller {
 
                     final long minUpdateInterval = 0 ; // nanoseconds. Set to higher number to slow output.
 
-                    AnimationTimer timer = new AnimationTimer() {
+                      timer = new AnimationTimer() {
 
                         @Override
                         public void handle(long now) {
                             if (now - lastUpdate.get() > minUpdateInterval) {
-                                final Object message = messageQueue.poll();
+                                final Object message =  messageQueue.poll();
                                 if (message instanceof Integer) {
-                                    if (message != null) {
-                                            procent.setText((int)message + "%");
-                                            progress.setProgress((double)((int)message)/100);
-                                    }
+                                    procent.setText((int)message + "%");
+                                    progress.setProgress((double) ((int) message) / 100);
                                 }
                                 else if (message instanceof WordprocessingMLPackage){
-                                        setWord((WordprocessingMLPackage)message);
+                                    setWord((WordprocessingMLPackage)message);
+                                }
+                                else if (message instanceof  String) {
+                                    try {
+                                        if (((String)message).equals("exit")) {
+                                            procent.setText("0% ");
+                                            procent.setVisible(false);
+                                            progress.setProgress(0);
+                                            progress.setVisible(false);
+                                            timer.stop();
+                                        }
+                                        else {
+                                            messageQueue2.put(setInfo((String)message));
+                                        }
+                                    } catch (InterruptedException e) {
+                                        setInfo("");
                                     }
+                                    finally {
+                                        synchronized (sync) {
+                                            sync.notifyAll();
+                                        }
+                                    }
+                                }
                                 lastUpdate.set(now);
-
                             }
                         }
 
                     };
 
                     timer.start();
-
-
                 }
                 else {
                     stillDisabled.setText("Не введены все данные!");
@@ -163,16 +182,21 @@ public class Vista1Controller {
 
     }
 
+    public void close(ActionEvent actionEvent) {
+        Stage stage = (Stage) close.getScene().getWindow();
+        stage.close();
+    }
+
     @FXML private void chooseGost() {
         stillDisabled.setText("");
         gostNumber = Integer.valueOf((String) gostChooser.getSelectionModel().getSelectedItem());
         docChooser.setDisable(false);
         ObservableList<String> docs = FXCollections.observableArrayList();
+        //docs.clear();
         switch (gostNumber) {
             case (19):
                 docs.add("Техническое задание");
                 docs.add("Формуляр");
-                docs.add("Спецификация");
                 docs.add("Текст программы");
                 docs.add("Описание программы");
                 docs.add("Ведомость эксплуатационных документов");
@@ -180,7 +204,6 @@ public class Vista1Controller {
                 docs.add("Руководство системного программиста");
                 docs.add("Руководство программиста");
                 docs.add("Руководство оператора");
-                docs.add("Руководство по техническому обслуживанию");
                 docs.add("Программа и методика испытаний");
                 docs.add("Пояснительная записка");
                 break;
@@ -190,7 +213,6 @@ public class Vista1Controller {
                 docs.add("Схема структурная комплекса технических средств");
                 docs.add("Схема организационной структуры");
                 docs.add("Схема автоматизации");
-                docs.add("Спецификация оборудования");
                 docs.add("Руководство пользователя");
                 docs.add("Проектная оценка надежности системы");
                 docs.add("Перечень выходных сигналов (документов)");
@@ -211,20 +233,23 @@ public class Vista1Controller {
                 docs.add("Массив входных данных");
                 docs.add("Каталог базы данных");
                 docs.add("Инструкция по эксплуатации КТС");
-                docs.add("Ведомость машинных носителей информации");
                 docs.add("Формуляр");
                 docs.add("Программа и методика испытаний");
                 docs.add("Описание массива информации");
-                docs.add("Ведомость оборудования и материалов");
                 docs.add("Техническое задание");
                 break;
         }
         docChooser.setItems(docs);
+        docChooser.setValue(docs.get(0));
     }
 
     @FXML private void chooseDoc() {
         stillDisabled.setText("");
         doc = (String)docChooser.getSelectionModel().getSelectedItem();
+        if (doc == null) {
+            doc = (String)docChooser.getItems().get(0);
+
+        }
         switch (doc) {
             case("Формуляр") :
                 if (gostNumber == 19) {
@@ -234,17 +259,14 @@ public class Vista1Controller {
                     document = Document.Formulyar_34;
                 }
                 break;
-            case("Спецификация") : document = Document.Spezifikation; break;
             case("Текст программы") : document = Document.Tekst_programmi; break;
             case("Описание программы") : document = Document.Opisanie_Programmi; break;
             case("Ведомость эксплуатационных документов") :document = Document.Vedomost_ekspluatacionnich_dokumentov;
-               break;
+                break;
             case("Описание применения") :  document = Document.Opisanie_primeneniya;break;
             case("Руководство системного программиста") :  document = Document.Rukovodstvo_sistemnogo_programmista;break;
             case("Руководство программиста") : document = Document.Rukovodstvo_programmista; break;
             case("Руководство оператора") :  document = Document.Rukovodstvo_operatora;break;
-            case("Руководство по техническому обслуживанию") :
-                document = Document.Rukovodstvo_po_technicheskomu_obsluzhivaniu; break;
             case("Программа и методика испытаний") :
                 if (gostNumber == 19) {
                     document = Document.Programma_i_metodika_ispitanii;
@@ -296,90 +318,46 @@ public class Vista1Controller {
         }
     }
 
-    @FXML private void setParameters() {
-
-
-
-    }
-
-    public void close(ActionEvent actionEvent) {
-        Stage stage = (Stage) close.getScene().getWindow();
-        stage.close();
-    }
-
-//    /**
-//     * @param args the command line arguments
-//     */
-//    public static void main(String[] args) {
-//        Application.launch(args);
-//    }
-//
-//    @Override
-//    public void start(Stage primaryStage) {
-//        primaryStage.setTitle("Hello World");
-//        Group root = new Group();
-//        Scene scene = new Scene(root, 300, 250);
-//        Button btn = new Button();
-//        btn.setLayoutX(100);
-//        btn.setLayoutY(80);
-//        btn.setText("Hello World");
-//        btn.setOnAction(new EventHandler<ActionEvent>() {
-//
-//            public void handle(ActionEvent event) {
-//                String[] cmdArray = {"cmd", "/c", "start", "c:\\q.docx"};
-//
-//                try {
-//                    java.lang.Runtime.getRuntime().exec(cmdArray);
-//                } catch (Exception s) {
-//                }
-//
-//            }
-//        });
-//        root.getChildren().add(btn);
-//        primaryStage.setScene(scene);
-//        primaryStage.show();
-//    }
-
 
     public boolean setInfo(String info) {
-        String message, answer_1, answer_2 = null;
-        switch (info) {
-            case ("Файл не соответствует шаблону!"):
-                message = "Загруженный файл не соответствует структуре файла \"" + docName + "\".";
-                answer_1 = "Остановить процесс";
-                break;
-            case ("Docx is empty"):
-                message = "Загруженный файл пуст. Процесс завершается.";
-                answer_1 = "ОК";
-                break;
-            case ("year or letter must be set"):
-                message = "Необходимо наличие даты или литеры на листе утверждения и(или) титульном листе." +
-                        "Создать пустые лист утверждения и титульный лист?";
-                answer_1 = "Да";
-                answer_2 = "Остановить процесс";
-                break;
-            case ("Is not the first page!"):
-                message = "В файле отсутствует лист утверждения. Создать пустой лист утверждения?";
-                answer_1 = "Да";
-                answer_2 = "Остановить процесс";
-                break;
-            case ("The inserted name is not correct"):
-                message = "Введенное название документа некорректно. Процесс завершается.";
-                answer_1 = "ОК";
-                break;
-            default: message = "Произошла внутрисистемная ошибка. Попробовать снова?";
-                answer_1 = "Да";
-                answer_2 = "Нет";
-                break;
-        }
-        return answer_1.equals(showErrorMessage(message, answer_1, answer_2));
+            String message, answer_1, answer_2 = null;
+            switch (info) {
+                case ("Файл не соответствует шаблону!"):
+                    message = "Загруженный файл не соответствует структуре файла \"" + docName + "\".";
+                    answer_1 = "Остановить процесс";
+                    break;
+                case ("Docx is empty"):
+                    message = "Загруженный файл пуст. Процесс завершается.";
+                    answer_1 = "ОК";
+                    break;
+                case ("year or letter must be set"):
+                    message = "Необходимо наличие даты или литеры на листе утверждения и(или) титульном листе." +
+                            "Создать пустые лист утверждения и титульный лист?";
+                    answer_1 = "Да";
+                    answer_2 = "Остановить процесс";
+                    break;
+                case ("Is not the first page!"):
+                    message = "В файле отсутствует лист утверждения. Создать пустой лист утверждения?";
+                    answer_1 = "Да";
+                    answer_2 = "Остановить процесс";
+                    break;
+                case ("The inserted name is not correct"):
+                    message = "Введенное название документа некорректно. Процесс завершается.";
+                    answer_1 = "ОК";
+                    break;
+                default: message = "Произошла внутрисистемная ошибка. Попробовать снова?";
+                    answer_1 = "Да";
+                    answer_2 = "Нет";
+                    break;
+            }
+                return answer_1.equals(showErrorMessage(message, answer_1, answer_2));
     }
 
     private String showErrorMessage(String message, String answer_1, String answer_2) {
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("");
-        // alert.setHeaderText("Look, a Confirmation Dialog with Custom Actions");
+         alert.setHeaderText("");
         alert.setContentText(message);
 
         ButtonType buttonTypeOne = new ButtonType(answer_1);
@@ -405,18 +383,33 @@ public class Vista1Controller {
     }
 
     public  void setWord(WordprocessingMLPackage word) {
-        if (word == null)
-            showErrorMessage("Файл пуст.", "ОК", null);
+//        th.interrupt();
+//        if (word == null)
+//            showErrorMessage("Файл пуст.", "ОК", null);
+        procent.setText("0% ");
+   //     timer.stop();
+        procent.setVisible(false);
+        progress.setProgress(0);
+        progress.setVisible(false);
 
-        File file = fileChooser.showSaveDialog(root.getScene().getWindow());
-        try {
-            word.save(file);
-            String[] cmdArray = {"cmd", "/c", "start", file.getAbsolutePath()};
-            java.lang.Runtime.getRuntime().exec(cmdArray);
-        } catch (Docx4JException e) {
-            showErrorMessage("Не получилось сохранить в файл" + file.getName() + ".", "ОК", null);
-        } catch (IOException e) {
-            showErrorMessage("Не получается открыть приложение для демонстрации файла.", "ОК", null);
+        if (word!= null) {
+            File file = fileChooser.showSaveDialog(root.getScene().getWindow());
+            if (file != null )
+                try {
+                    word.save(file);
+                    String[] cmdArray = {"cmd", "/c", "start", file.getAbsolutePath()};
+                    java.lang.Runtime.getRuntime().exec(cmdArray);
+                } catch (Docx4JException e) {
+                    showErrorMessage("Не получилось сохранить в файл" + file.getName() + ".", "ОК", null);
+                } catch (IOException e) {
+                    showErrorMessage("Не получается открыть приложение для демонстрации файла.", "ОК", null);
+                }
+                finally {
+                    synchronized (sync) {
+                        sync.notifyAll();
+                    }
+                }
+
         }
     }
 }

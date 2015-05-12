@@ -71,7 +71,7 @@ public class ProcessorOfTitles {
         String res = null;
         for (int i = 0; i < firstPage.size(); i++)  {
             s = DocBase.getText(firstPage.get(i));
-            if (s.toLowerCase().equals("лист утверждения") || ngrammPossibility(s, "лист утверждения") >=0.5 ) {
+            if (s.toLowerCase().equals("лист утверждения") || DocxMethods.ngrammPossibility(s, "лист утверждения") >=0.5 ) {
                 isFirstpage = true;
                 index = i;
             }
@@ -101,44 +101,6 @@ public class ProcessorOfTitles {
         return  res;
     }
 
-
-
-
-    private double ngrammPossibility (String actual, String checked) {
-        if (actual.length() < 2)
-            return 0;
-        String[] actualGramm  = new String[actual.length() - 2];
-        String[] checkedGramm  = new String[checked.length() - 2];
-        int index = 0;
-        for (int i = 0; i < checked.length(); i++) {
-            if (i ==checked.length() - 3) {
-                checkedGramm[index] = checked.substring(i, i+3);
-                break;
-            }
-            else checkedGramm[index] = checked.substring(i, i+3);
-            index++;
-        }
-        index = 0;
-        for (int i = 0; i < actual.length(); i++) {
-            if (i ==actual.length() - 3) {
-                actualGramm[index] = actual.substring(i, i+3);
-                break;
-            }
-            else actualGramm[index] = actual.substring(i, i+3);
-            index++;
-        }
-
-        double coincidence = 0.0;
-        index = 0;
-        int max = (checkedGramm.length>actualGramm.length)? actualGramm.length :checkedGramm.length;
-        while (index != max) {
-            if (checkedGramm[index].equals(actualGramm[index]))
-                coincidence++;
-            ++index;
-        }
-        return coincidence/max;
-    }
-
     private List<Integer> findName (int start) {
         String s;
         List<Integer> indexes = new ArrayList<>();
@@ -150,12 +112,12 @@ public class ProcessorOfTitles {
             }
             else {
                 if (name.toLowerCase().contains(s.toLowerCase()) ||
-                        ngrammPossibility(name, s) >=0.3) {
+                        DocxMethods.ngrammPossibility(name, s) >=0.3) {
                     indexes.add(i);
                     indexes.addAll(findName(i));
                     return indexes;
                 }else
-                if (ngrammPossibility(name, s) >= 0.5) {
+                if (DocxMethods.ngrammPossibility(name, s) >= 0.5) {
                     indexes.add(i);
                     return indexes;
                 }
@@ -170,7 +132,7 @@ public class ProcessorOfTitles {
         String s;
         for (int i = 0; i< firstPage.size(); i++) {
             s = DocBase.getText(firstPage.get(i));
-            if (ngrammPossibility(s, type) >= 0.5) {
+            if (DocxMethods.ngrammPossibility(s, type) >= 0.5) {
                 typeIndex = i;
                 return;
             }
@@ -181,7 +143,7 @@ public class ProcessorOfTitles {
         String s;
         for (int i = 0; i< firstPage.size(); i++) {
             s = DocBase.getText(firstPage.get(i)).toLowerCase();
-            if (s.toLowerCase().equals("cогласовано") || ngrammPossibility("согласовано", s) >= 0.5) {
+            if (s.toLowerCase().equals("cогласовано") || DocxMethods.ngrammPossibility("согласовано", s) >= 0.5) {
          //       DocBase.setHighlight(firstPage.get(i), "yellow");
                 if (agreementIndexes[0]== -1)
                     agreementIndexes[0] = i;
@@ -191,7 +153,7 @@ public class ProcessorOfTitles {
                 }
             }
 
-            if (s.toLowerCase().equals("утверждаю")|| ngrammPossibility("утверждаю", s) >= 0.5) {
+            if (s.toLowerCase().equals("утверждаю")|| DocxMethods.ngrammPossibility("утверждаю", s) >= 0.5) {
             //    DocBase.setHighlight(firstPage.get(i), "yellow");
                 approveIndex = i;
             }
@@ -216,7 +178,7 @@ public class ProcessorOfTitles {
         StringBuffer res = new StringBuffer();
         for (int i = agreementIndexes[0]; i < lastIndex; i++ )  {
             s = DocBase.getText(firstPage.get(i));
-            if (s.toLowerCase().contains("согласовано") || ngrammPossibility("согласовано", s) >=0.5)
+            if (s.toLowerCase().contains("согласовано") || DocxMethods.ngrammPossibility("согласовано", s) >=0.5)
                 s = "СОГЛАСОВАНО";
             res.append(s);
            res.append(" \n ");
@@ -227,7 +189,7 @@ public class ProcessorOfTitles {
             res = new StringBuffer();
             for (int i = approveIndex; i < lastIndex; i++ )  {
                 s = DocBase.getText(firstPage.get(i));
-                if (s.toLowerCase().contains("утверждаю")|| ngrammPossibility("утверждаю", s) >=0.5)
+                if (s.toLowerCase().contains("утверждаю")|| DocxMethods.ngrammPossibility("утверждаю", s) >=0.5)
                     s = "УТВЕРЖДАЮ";
                 res.append(s);
                 res.append("\n");

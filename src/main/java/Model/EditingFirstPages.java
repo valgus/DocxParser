@@ -89,15 +89,18 @@ public class EditingFirstPages {
                     letterIndex!=-1 && i - letterIndex > 10)
                 break;
         }
-        if (year == null && letter == null) {
+        if (yearIndex == -1 && letterIndex == -1) {
             boolean is = sendIndfo("year or letter must be set");
             if (is) {
                 year = "ДАТА";
                 yearIndex = 0;
 
             }
+            else {
+                return null;
+            }
         }
-        if (year!=null && letter != null )
+        if (yearIndex != -1 && letterIndex != -1)
             if (letterIndex - yearIndex == 2)
                 changeString = DocBase.getText(docPara.get(letterIndex - yearIndex));
         if (yearIndex!= 0 &&  yearIndex!= -1  || letterIndex != -1) {
@@ -198,41 +201,41 @@ public class EditingFirstPages {
 
         P[] pr0 = new P[1];
         if (!(company == null) && !company.equals("")) {
-            pr0[0] = setP(company.toUpperCase(), "Arial", null, "0", "0", 360, "CENTER", null, false, false);
+            pr0[0] = setP(company.toUpperCase(), "Arial", null, -1, -1, 360, "CENTER", null, false, false);
             table.getContent().add(addRowWithMergedCells(false, null, pr0, null, 0, (int)(pageWidth*0.5), 0, 0));
         }
         int i = 0;
         P[] pr1 = null;
         if (!(agreement == null) && !agreement.equals("")) {
             pr1 = new P[1];
-            pr1[0] = setP(agreement, "Times New Roman", null, null, null, 240, "CENTER", null, false, false);
+            pr1[0] = setP(agreement, "Times New Roman", null, -1, -1, 240, "CENTER", null, false, false);
         }
         P[] pr2 = null;
         if (!(approve == null) && !approve.equals("")) {
             pr2 = new P[1];
-            pr2[0] = setP(approve, "Times New Roman", null, null, null, 240, "CENTER", null, false, false);
+            pr2[0] = setP(approve, "Times New Roman", null, -1, -1, 240, "CENTER", null, false, false);
         }
-        P[] pr = {setP("", "Times New Roman", null, null, null, 240, null, null, false, false) };
+        P[] pr = {setP("", "Times New Roman", null, -1, -1, 240, null, null, false, false) };
         table.getContent().add(addRowWithMergedCells(true, pr1,pr,pr2, (int)(pageWidth*0.2),(int)(pageWidth*0.2),
                 (int)(pageWidth*0.2), 1 ));
 
         P[] pr3 = new P[10];
-        pr3[i] = setP("","Times New Roman", null, null, null, 240, null, null, false, false);i++;
-        pr3[i] = setP(name.toUpperCase(), "Times New Roman",null, null, null, 240, "CENTER", "28", false, false); i++;
-        pr3[i] = setP("", "Arial",null, null, null, 240, null, "24", false, false);i++;
+        pr3[i] = setP("","Times New Roman", null, -1, -1, 240, null, null, false, false);i++;
+        pr3[i] = setP(name.toUpperCase(), "Times New Roman",null, -1, -1, 240, "CENTER", "28", false, false); i++;
+        pr3[i] = setP("", "Arial",null, -1, -1, 240, null, "24", false, false);i++;
         if (!(subName == null) && !subName.equals("") && !subName.isEmpty() && !subName.equals("Наименование документа")) {
-            pr3[i] = setP(subName, "Arial",null, null, null,240, "CENTER", "24", false, true); i++;}
-        pr3[i] = setP(type, "Arial", null, null, null, 360, "CENTER", "24", false, false); i++;
+            pr3[i] = setP(subName, "Arial",null, -1, -1,240, "CENTER", "24", false, true); i++;}
+        pr3[i] = setP(type, "Arial", null, -1, -1, 360, "CENTER", "24", false, false); i++;
         if (albom!= null && !albom.isEmpty() && !albom.equals("")) {
-            pr3[i] =  setP(albom, "Arial", null, null, null, 360, "CENTER", "24", false, true); i++;}
-        pr3[i] = setP("ЛИСТ УТВЕРЖДЕНИЯ", "Arial", null, null, null, 360, "CENTER", "32", false, true);i++;
+            pr3[i] =  setP(albom, "Arial", null, -1, -1, 360, "CENTER", "24", false, true); i++;}
+        pr3[i] = setP("ЛИСТ УТВЕРЖДЕНИЯ", "Arial", null, -1, -1, 360, "CENTER", "32", false, true);i++;
         pr3[i] = setP(docNumber.replace("{wrong}", ""),
-                "Arial", null, null, null, 360, "CENTER", null, docNumber.contains("{wrong}"), true);i++;
+                "Arial", null, -1, -1, 360, "CENTER", null, docNumber.contains("{wrong}"), true);i++;
         if (!(medium == null) && !medium.equals("") && !medium.equals("(вид носителя данных)")) {setP(medium, "Arial",null,
-                null, null, 360, "CENTER", null, false, true); i++;}
-        pr3[i] = setP("", "Arial", null, null, null, 360, "CENTER", "20", false, false);i++;
+                -1, -1, 360, "CENTER", null, false, true); i++;}
+        pr3[i] = setP("", "Arial", null, -1, -1, 360, "CENTER", "20", false, false);i++;
         if (!nPages.isEmpty()) {
-            pr3[i] = setP(nPages, "Arial",null, null, null, 360, "CENTER", "28", true, true);}
+            pr3[i] = setP(nPages, "Arial",null, -1, -1, 360, "CENTER", "28", true, true);}
         table.getContent().add(addRowWithMergedCells(false, null, pr3, null, 0, (int)(pageWidth*0.5), 0, 2));
         P[] pr_ = {new P(), new P(), new P(), new P(),new P(), new P(), new P(),
                 new P(),new P(), new P(), new P(), new P()};
@@ -243,26 +246,26 @@ public class EditingFirstPages {
         if (remained!= null && remained.size()!=0) remainStrings = DocBase.changeToString(remained);
         if (bound != -1) {
             pr4 = new P[bound+1];
-            pr4[0] = setP("СОГЛАСОВАНО","Times New Roman", null, null, null, 240, null, null, false, false);
+            pr4[0] = setP("СОГЛАСОВАНО","Times New Roman", null, -1, -1, 240, null, null, false, false);
             for (int k = 1; k < remainStrings.size() - bound - 1; k ++ ) {
-                pr4[k] = setP(remainStrings.get(k), "Times New Roman", null, null, null, 240, "CENTER", null, false, false);
+                pr4[k] = setP(remainStrings.get(k), "Times New Roman", null, -1, -1, 240, "CENTER", null, false, false);
             }
             pr5 = new P[remainStrings.size() - bound];
             for (int k = 0; k < remainStrings.size() - bound; k ++ ) {
-                pr5[k] = setP(remainStrings.get(k), "Times New Roman", null, null, null, 240, "CENTER", null, false, false);
+                pr5[k] = setP(remainStrings.get(k), "Times New Roman", null, -1, -1, 240, "CENTER", null, false, false);
             }
         }
         else {
             if (remainStrings.size() != 0) {
                 pr5 = new P[remainStrings.size()];
                 for (int k = 0; k < remainStrings.size(); k ++ ) {
-                    pr5[k] = setP(remainStrings.get(k), "Times New Roman", null, null, null, 240, "CENTER", null, false, false);
+                    pr5[k] = setP(remainStrings.get(k), "Times New Roman", null, -1, -1, 240, "CENTER", null, false, false);
                 }
             }
         }
-        P[] pr6 = {setP(year, "Times New Roman", null, null, null, 240, "CENTER", null, false, true),
-                setP(changeString, "Times New Roman", null, null, null, 240, "CENTER", null, false, true),
-                setP(letter, "Times New Roman", null, null, null, 240, "RIGHT", null, false, true)};
+        P[] pr6 = {setP(year, "Times New Roman", null, -1, -1, 240, "CENTER", null, false, true),
+                setP(changeString, "Times New Roman", null, -1, -1, 240, "CENTER", null, false, true),
+                setP(letter, "Times New Roman", null, -1, -1, 240, "RIGHT", null, false, true)};
         table.getContent().add(addRowWithMergedCells(false, pr4, pr_, pr5, (int)(pageWidth*0.2), (int)(pageWidth*0.2),
                 (int)(pageWidth*0.2), 3));
         table.getContent().add(addRowWithMergedCells(false, null, pr6, null, 0, (int)(pageWidth*0.5), 0, 4));
@@ -314,40 +317,40 @@ public class EditingFirstPages {
         cellMar.setRight(width2);
         cellMar.setTop(width2);
 
-        P[] pr1 = {setP("УТВЕРЖДЕНО", "Times New Roman", null, null, null, 480, null, null, false, false),
-                setP(docNumber.replace("{wrong}","").replace("-ЛУ",""), "Courier New", null, null, null, 240, "LEFT", "20", false, false),
+        P[] pr1 = {setP("УТВЕРЖДЕНО", "Times New Roman", null, -1, -1, 480, null, null, false, false),
+                setP(docNumber.replace("{wrong}","").replace("-ЛУ",""), "Courier New", null, -1, -1, 240, "LEFT", "20", false, false),
         };
 
-        P[] pr = {setP("", "Times New Roman", null, null, null, 240, null, null, false, false),
-                setP("", "Times New Roman", null, null, null, 240, null, null, false, false),
-                setP("", "Times New Roman", null, null, null, 240, null, null, false, false) };
+        P[] pr = {setP("", "Times New Roman", null, -1, -1, 240, null, null, false, false),
+                setP("", "Times New Roman", null, -1, -1, 240, null, null, false, false),
+                setP("", "Times New Roman", null, -1, -1, 240, null, null, false, false) };
         table.getContent().add(addRowWithMergedCells(true, pr1,pr,pr,(int)(0.2*pageWidth) ,(int)(0.2*pageWidth),
                 (int)(0.2*pageWidth), 1 ));
 
         P[] pr3 = new P[9];
         int i = 0;
-        pr3[i] = setP("","Times New Roman", null, null, null, 240, null, null, false, false);i++;
-        pr3[i] = setP(name.toUpperCase(), "Times New Roman",null, null, null, 240, "CENTER", null, false, false); i++;
-        pr3[i] = setP("", "Arial",null, null, null, 240, null, null, false, false);i++;
+        pr3[i] = setP("","Times New Roman", null, -1, -1, 240, null, null, false, false);i++;
+        pr3[i] = setP(name.toUpperCase(), "Times New Roman",null, -1, -1, 240, "CENTER", null, false, false); i++;
+        pr3[i] = setP("", "Arial",null, -1, -1, 240, null, null, false, false);i++;
         if (!(subName == null) && !subName.equals("") && !subName.equals("Наименование документа")) {
-            pr3[i] = setP(subName, "Arial",null, null, null,240, "CENTER", null, false, true); i++;}
+            pr3[i] = setP(subName, "Arial",null, -1, -1,240, "CENTER", null, false, true); i++;}
 
-        pr3[i] = setP(type, "Arial", null, null, null, 360, "CENTER", "24", false, false); i++;
+        pr3[i] = setP(type, "Arial", null, -1, -1, 360, "CENTER", "24", false, false); i++;
         if (albom!= null && !albom.isEmpty() && !albom.equals("")) {
-            pr3[i] =  setP(albom, "Arial", null, null, null, 360, "CENTER", "24", false, true); i++;}
+            pr3[i] =  setP(albom, "Arial", null, -1, -1, 360, "CENTER", "24", false, true); i++;}
         pr3[i] = setP(docNumber.replace("{wrong}", "").replace("-ЛУ",""),
-                "Arial", null, null, null, 360, "CENTER", null, docNumber.contains("{wrong}"), true);i++;
+                "Arial", null, -1, -1, 360, "CENTER", null, docNumber.contains("{wrong}"), true);i++;
         if (!(medium == null) && !medium.equals("")&& !medium.equals("(вид носителя данных)")) {setP(medium, "Arial",null,
-                null, null, 360, "CENTER", null, false, true); i++;}
-        pr3[i] = setP("", "Arial", null, null, null, 360, "CENTER", "20", false, false);i++;
+                -1, -1, 360, "CENTER", null, false, true); i++;}
+        pr3[i] = setP("", "Arial", null, -1, -1, 360, "CENTER", "20", false, false);i++;
         if (!nPages.isEmpty()) {
-            pr3[i] = setP(nPages, "Arial",null, null, null, 360, "CENTER", "28", true, true);}
+            pr3[i] = setP(nPages, "Arial",null, -1, -1, 360, "CENTER", "28", true, true);}
         table.getContent().add(addRowWithMergedCells(false, null, pr3, null, 0, (int)(0.5*pageWidth), 0, 2));
         P[] pr_ = {new P(), new P(), new P(), new P(),new P(), new P(), new P(), new P(),new P(), new P(), new P(), new P()};
         table.getContent().add(addRowWithMergedCells(false, pr, pr_, pr, 1500, 1500, 1500, 3));
-        P[] pr5 = {setP(year, "Times New Roman", null, null, null, 240, "CENTER", null, false, true),
-                setP(changeString, "Times New Roman", null, null, null, 240, "CENTER", null, false, true),
-                setP(letter, "Times New Roman", null, null, null, 240, "RIGHT", null, false, true)};
+        P[] pr5 = {setP(year, "Times New Roman", null, -1, -1, 240, "CENTER", null, false, true),
+                setP(changeString, "Times New Roman", null, -1, -1, 240, "CENTER", null, false, true),
+                setP(letter, "Times New Roman", null, -1, -1, 240, "RIGHT", null, false, true)};
         table.getContent().add(addRowWithMergedCells(false, null, pr5, null, 0, (int)(0.5*pageWidth), 0, 4));
         doc.getMainDocumentPart().getContent().add(2, table);
         Br objBr = new Br();
@@ -450,7 +453,7 @@ public class EditingFirstPages {
         tr.getContent().add(tc1);
     }
 
-    private  P setP (String text, String font, String style, String ilvl, String numId, int spacing, String align,
+    private  P setP (String text, String font, String style, int ilvl, int numId, int spacing, String align,
                      String size, boolean highlight, boolean setBold) {
         P p = new P();
         DocBase.setRightP(p, text);

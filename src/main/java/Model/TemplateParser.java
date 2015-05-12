@@ -29,8 +29,14 @@ public class TemplateParser {
 
     private static boolean isTitle (P p){
         try {
-        if (p.getPPr().getPStyle().getVal().equals("1") && p.getPPr().getTabs() != null) {
-            return true;
+        if (p.getPPr().getPStyle().getVal()!= null) {
+            try{
+                int styleid = Integer.valueOf(p.getPPr().getPStyle().getVal());
+                return true;
+            }
+            catch (NumberFormatException ex) {
+                return false;
+            }
         }
         }
         catch (NullPointerException ex) {return false;}
@@ -43,13 +49,9 @@ public class TemplateParser {
         List<Object> jaxbNodes = DocxMethods.createParagraphJAXBNodes(template);
         for (Object jaxbNode : jaxbNodes) {
             P p = (P)jaxbNode;
-            int lvl = DocBase.getLevelInList(p).intValue();
-            int id =  DocBase.getNumIDInList(p).intValue();
-            if (id != -1) {
-                Title currentTitle = new Title(lvl, DocBase.getText(p), DocBase.getAttributes(p));
-                titles.add(currentTitle);
-            }
-            if (isTitle(p)) {
+            if (isTitle(p) && !DocBase.getText(p).equals("") ||
+                    DocBase.getText(p).toLowerCase().equals("приложение") ||
+                    DocBase.getText(p).toLowerCase().equals("приложения")  ) {
                 Title currentTitle = new Title(0, DocBase.getText(p), DocBase.getAttributes(p));
                 titles.add(currentTitle);
             }
@@ -58,9 +60,6 @@ public class TemplateParser {
     }
 
 
-
-
-//lvl == -1? lvl+1:
 }
 
 

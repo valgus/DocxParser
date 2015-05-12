@@ -229,4 +229,39 @@ public final class DocxMethods {
 
     }
 
+    public static double ngrammPossibility (String actual, String checked) {
+        if (actual.length() < 3 || checked.length() < 3)
+            return (actual.equals(checked))?1:0;
+        String[] actualGramm  = new String[actual.length() - 2];
+        String[] checkedGramm  = new String[checked.length() - 2];
+        int index = 0;
+        for (int i = 0; i < checked.length(); i++) {
+            if (i ==checked.length() - 3) {
+                checkedGramm[index] = checked.substring(i, i+3);
+                break;
+            }
+            else checkedGramm[index] = checked.substring(i, i+3);
+            index++;
+        }
+        index = 0;
+        for (int i = 0; i < actual.length(); i++) {
+            if (i ==actual.length() - 3) {
+                actualGramm[index] = actual.substring(i, i+3);
+                break;
+            }
+            else actualGramm[index] = actual.substring(i, i+3);
+            index++;
+        }
+
+        double coincidence = 0.0;
+        index = 0;
+        int max = (checkedGramm.length>actualGramm.length)? actualGramm.length :checkedGramm.length;
+        while (index != max) {
+            if (checkedGramm[index].equals(actualGramm[index]))
+                coincidence++;
+            ++index;
+        }
+        return coincidence/max;
+    }
+
 }

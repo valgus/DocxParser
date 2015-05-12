@@ -17,7 +17,7 @@ import java.util.List;
 public final class DocBase {
 
     static ObjectFactory factory = Context.getWmlObjectFactory();
-    public static void setStyle (P p, String fontSize, String font, String style, String level, String id, int space, String align,
+    public static void setStyle (P p, String fontSize, String font, String style, int level, int id, int space, String align,
                                  boolean setBold) {
 
         String text = getText(p);
@@ -33,13 +33,14 @@ public final class DocBase {
         if (font != null && font != "") {
             setFont(p, font);
         }
-        if (level != null && level != "" && id!= null && id != "") {
-            setLevel(p, level, id);
-        }
+
         if (space != 0)
             setSpacing(p, space, -1);
         if (align != null) {
             setAlign(p, align);
+        }
+        if (level!= -1 && id!= -1) {
+            setNumberedParagraph(p, id, level);
         }
 
         if (setBold) {
@@ -486,5 +487,28 @@ public final class DocBase {
                 content.remove(o);
             }
         }
+    }
+
+    public static void setNumberedParagraph(P p, long numId, long ilvl) {
+
+        if (p.getPPr() == null) {
+            org.docx4j.wml.PPr ppr = factory.createPPr();
+            p.setPPr( ppr );
+        }
+
+        // Create and add <w:numPr>
+        PPrBase.NumPr numPr =  factory.createPPrBaseNumPr();
+        p.getPPr().setNumPr(numPr);
+
+        // The <w:ilvl> element
+        PPrBase.NumPr.Ilvl ilvlElement = factory.createPPrBaseNumPrIlvl();
+        numPr.setIlvl(ilvlElement);
+        ilvlElement.setVal(BigInteger.valueOf(ilvl));
+
+        // The <w:numId> element
+        PPrBase.NumPr.NumId numIdElement = factory.createPPrBaseNumPrNumId();
+        numPr.setNumId(numIdElement);
+        numIdElement.setVal(BigInteger.valueOf(numId));
+
     }
 }

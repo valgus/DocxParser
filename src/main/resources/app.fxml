@@ -2,7 +2,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane fx:id="root" xmlns:fx="http://javafx.com/fxml" fx:controller="View2.Vista1Controller">
+<BorderPane fx:id="root" xmlns:fx="http://javafx.com/fxml" fx:controller="View2.Controller">
     <top>
         <HBox maxHeight="25.0" spacing="10" minHeight="25.0" prefHeight="25.0" style="-fx-background-color: #0074C6; -fx-padding: 2 5 2 5"
               alignment="BOTTOM_RIGHT">
