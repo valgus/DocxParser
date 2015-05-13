@@ -120,7 +120,7 @@ public class HeaderFooter extends  SectionWrapper{
         return hdr;
     }
 
-    public static SectPr process(WordprocessingMLPackage word) throws Exception {
+    public static SectPr process(WordprocessingMLPackage word, boolean setPageNumber) throws Exception {
         MainDocumentPart mdp = word.getMainDocumentPart();
 
 
@@ -133,7 +133,8 @@ public class HeaderFooter extends  SectionWrapper{
         cover_hdr_part.setPackage(word);
         content_hdr_part.setPackage(word);
 
-        Hdr cover_hdr = factory.createHdr(), content_hdr = getHdr();
+        Hdr cover_hdr = factory.createHdr();
+        Hdr content_hdr = (setPageNumber)?getHdr():factory.createHdr();
         P p = factory.createP();
         DocBase.setText(p, "", false);
         cover_hdr.getContent().add(p);
@@ -203,11 +204,12 @@ public class HeaderFooter extends  SectionWrapper{
         hdr_ref.setType(HdrFtrRef.FIRST);
         sectPr1.getEGHdrFtrReferences().add(hdr_ref);
 
+        if (setPageNumber) {
         hdr_ref = factory.createHeaderReference();
         hdr_ref.setId(content_hdr_rel.getId());
         hdr_ref.setType(HdrFtrRef.DEFAULT);
         sectPr1.getEGHdrFtrReferences().add(hdr_ref);
-
+        }
         BooleanDefaultTrue boolanDefaultTrue = new BooleanDefaultTrue();
         sectPr1.setTitlePg(boolanDefaultTrue);
 
@@ -219,10 +221,12 @@ public class HeaderFooter extends  SectionWrapper{
         ftr_ref.setId(cover_ftr_rel.getId());
         ftr_ref.setType(HdrFtrRef.FIRST);
         sectPr1.getEGHdrFtrReferences().add(ftr_ref);
+        if (setPageNumber) {
         ftr_ref = factory.createFooterReference();
         ftr_ref.setId(content_ftr_rel.getId());
         ftr_ref.setType(HdrFtrRef.DEFAULT);
         sectPr1.getEGHdrFtrReferences().add(ftr_ref);
+        }
         return sectPr1;
     }
 
@@ -232,7 +236,7 @@ public class HeaderFooter extends  SectionWrapper{
         P p = factory.createP();
         PPr ppr = factory.createPPr();
         p.setPPr(ppr);
-        SectPr sectPr= process(word);
+        SectPr sectPr= process(word, true);
         CTPageNumber pageNumber = sectPr.getPgNumType();
         if (pageNumber==null) {
             pageNumber = Context.getWmlObjectFactory().createCTPageNumber();

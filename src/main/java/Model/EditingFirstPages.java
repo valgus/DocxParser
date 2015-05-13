@@ -241,7 +241,7 @@ public class EditingFirstPages {
         if (!nPages.isEmpty()) {
             pr3[i] = setP(nPages, "Arial",null, -1, -1, 360, "CENTER", "28", false, true);}
         table.getContent().add(addRowWithMergedCells(false, null, pr3, null, 0, (int)(pageWidth*0.6), 0, 2));
-        int num = 26;
+        int num = 20;
         if (company.length() > 100 && company.length() <= 150)
             num--;
         if (company.length() >150 && company.length() <= 200 )
@@ -296,11 +296,10 @@ public class EditingFirstPages {
         table.getContent().add(addRowWithMergedCells(false, pr4, pr_, pr5, (int)(pageWidth*0.2), (int)(pageWidth*0.2),
                 (int)(pageWidth*0.2), 3));
         table.getContent().add(addRowWithMergedCells(false, null, pr6, null, 0, (int)(pageWidth*0.6), 0, 4));
-        doc.getMainDocumentPart().getContent().add(0,table);
-        doc.getMainDocumentPart().getContent().add(1, DocBase.makePageBr());
+
         SectPr sectPr= null;
         try {
-            sectPr = HeaderFooter.process(doc);
+            sectPr = HeaderFooter.process(doc, false);
         } catch (Exception e) {
             sendIndfo(e.getMessage());
         }
@@ -309,22 +308,22 @@ public class EditingFirstPages {
             pageNumber = Context.getWmlObjectFactory().createCTPageNumber();
             sectPr.setPgNumType(pageNumber);
         }
-       // doc.getMainDocumentPart().getContent().add(1, DocBase.makePageBr());
         pageNumber.setStart(BigInteger.ONE);
         P p = factory.createP();
         PPr ppr = factory.createPPr();
         p.setPPr(ppr);
         ppr.setSectPr(sectPr);
-        doc.getMainDocumentPart().getContent().add(2, p);
+     //   doc.getMainDocumentPart().getContent().add(0,table);
+        //doc.getMainDocumentPart().getContent().add(1,DocBase.makePageBr());
+
+
+        doc.getMainDocumentPart().getContent().add(0,table);
+        doc.getMainDocumentPart().getContent().add(1,p);
 
 
     }
     private  void setSecondPage() {
-        //   template.getMainDocumentPart().getContent().add(setP("", "Times New Roman", null, null, null, 480, null, null));
-//        newDoc.getMainDocumentPart().getContent().add(setP("",
-//                "Times New Roman", null, null, null, 480, null, null, false, false));
-//        newDoc.getMainDocumentPart().getContent().add(setP("",
-//                "Times New Roman", null, null, null, 480, null, null, false, false));
+
         CTVerticalJc ctVerticalJc = new CTVerticalJc();
         ctVerticalJc.setVal(STVerticalJc.CENTER);
         Tbl table = new Tbl();
@@ -370,7 +369,7 @@ public class EditingFirstPages {
                 -1, -1, 480, "CENTER", null, false, true); i++;}
         pr3[i] = setP(nPages2, "Arial",null, -1, -1, 360, "CENTER", "28", nPages2.equals("Листов__"), true);
         table.getContent().add(addRowWithMergedCells(false, null, pr3, null, 0, (int)(0.6*pageWidth), 0, 2));
-        int num = 32;
+        int num = 30;
         if (albom!= null && !albom.isEmpty() && !albom.equals(""))
             num-=3;
         if (name.length() > 50 & name.length() <=75)
@@ -395,8 +394,29 @@ public class EditingFirstPages {
                 setP(changeString, "Times New Roman", null, -1, -1, 240, "CENTER", null, false, true),
                 setP(letter, "Times New Roman", null, -1, -1, 240, "RIGHT", null, false, true)};
         table.getContent().add(addRowWithMergedCells(false, null, pr5, null, 0, (int)(0.6*pageWidth), 0, 4));
-        doc.getMainDocumentPart().getContent().add(3, table);
-        doc.getMainDocumentPart().getContent().add(4, DocBase.makePageBr());
+        doc.getMainDocumentPart().getContent().add(2, table);
+        SectPr sectPr= null;
+        try {
+            sectPr = HeaderFooter.process(doc, true);
+        } catch (Exception e) {
+            sendIndfo(e.getMessage());
+        }
+        CTPageNumber pageNumber = sectPr.getPgNumType();
+        if (pageNumber==null) {
+            pageNumber = Context.getWmlObjectFactory().createCTPageNumber();
+            sectPr.setPgNumType(pageNumber);
+        }
+        pageNumber.setStart(BigInteger.ONE);
+        P p = factory.createP();
+        PPr ppr = factory.createPPr();
+        p.setPPr(ppr);
+        ppr.setSectPr(sectPr);
+        //   doc.getMainDocumentPart().getContent().add(0,table);
+        //doc.getMainDocumentPart().getContent().add(1,DocBase.makePageBr());
+        doc.getMainDocumentPart().getContent().add(3,p);
+
+
+      //  doc.getMainDocumentPart().getContent().add(4, DocBase.makePageBr());
     }
 
     private  Tr addRowWithMergedCells(boolean image, P[] ps, P[] ps2, P[] ps3, int width1, int width2 , int width3, int num) {

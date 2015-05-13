@@ -107,13 +107,13 @@ public class MainPart {
         R r2 = factory.createR();
         r2.getContent().add(getWrappedFldChar(fldcharend));
         paragraphForTOC.getContent().add(r2);
-        //        document.getMainDocumentPart().getContent().add(indexOfTableOfContent, DocBase.makePageBr());
- //       document.getMainDocumentPart().getContent().add(corespondences.firstKey(), DocBase.makePageBr());
+      //        document.getMainDocumentPart().getContent().add(indexOfTableOfContent, DocBase.makePageBr());
         document.getMainDocumentPart().getContent().add(corespondences.firstKey(),  paragraphForTOC);
         P content = factory.createP();
         DocBase.setText(content, "СОДЕРЖАНИЕ", false);
         DocBase.setStyle(content, "28", "Times New Roman", null, -1, -1, 0, "LEFT", true);
         document.getMainDocumentPart().getContent().add(corespondences.firstKey(), content);
+        document.getMainDocumentPart().getContent().add(corespondences.firstKey(), DocBase.makePageBr());
         for (int index = 0; index < documentParagraphes.size(); index++) {
             P p = (P)documentParagraphes.get(index);
             String s = DocBase.getText(p);
@@ -153,8 +153,9 @@ public class MainPart {
                         DocBase.setStyle(annotation, "32", "Times New Roman", null, -1, -1, 0, "LEFT", true);
                         P explaination = factory.createP();
                         DocBase.setText(explaination, "Необходимо добавить раздел \"Аннотация\".", false);
-                        document.getMainDocumentPart().getContent().add(corespondences.firstKey()-1, explaination);
-                        document.getMainDocumentPart().getContent().add(corespondences.firstKey()-1, annotation);
+                        document.getMainDocumentPart().getContent().add(corespondences.firstKey(), DocBase.makePageBr());
+                        document.getMainDocumentPart().getContent().add(corespondences.firstKey(), explaination);
+                        document.getMainDocumentPart().getContent().add(corespondences.firstKey(), annotation);
 
                     //    document.getMainDocumentPart().getContent().add(indexOfTableOfContent, DocBase.makePageBr());
                     }
@@ -169,10 +170,18 @@ public class MainPart {
                     if (atr[0].equals("1")) {
                         DocBase.setText(p, DocBase.getText(p).toUpperCase(), true);
                         size = "32";
-                        if (!DocBase.getText(p).toLowerCase().contains("приложен"))
+                        if (!DocBase.getText(p).toLowerCase().contains("приложен")) {
                             DocBase.setStyle(p, size, "Times New Roman", null, 0, 1, 0, s, true);
-                        else
+                            document.getMainDocumentPart().getContent().add(
+                                    DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(), p),
+                                    DocBase.makePageBr());
+                        }
+                        else {
                             DocBase.setStyle(p, size, "Times New Roman", null, -1, -1, 0, "RIGHT", true);
+                            document.getMainDocumentPart().getContent().add(
+                                    DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(), p)
+                                    , DocBase.makePageBr());
+                        }
                     }
                     else {
                         DocBase.setStyle(p, size, "Times New Roman", null, 1, 1, 0, s, true);
