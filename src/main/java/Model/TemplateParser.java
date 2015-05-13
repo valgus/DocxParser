@@ -1,14 +1,12 @@
 package Model;
 
-import Model.DocBase;
-import Model.DocxMethods;
-import Model.Title;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.P;
 
-import java.io.*;
-import java.util.*;
+import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TemplateParser {
 
@@ -29,15 +27,15 @@ public class TemplateParser {
 
     private static boolean isTitle (P p){
         try {
-        if (p.getPPr().getPStyle().getVal()!= null) {
-            try{
-                int styleid = Integer.valueOf(p.getPPr().getPStyle().getVal());
-                return true;
+            if (p.getPPr().getPStyle().getVal()!= null) {
+                try{
+                    int styleid = Integer.valueOf(p.getPPr().getPStyle().getVal());
+                    return true;
+                }
+                catch (NumberFormatException ex) {
+                    return false;
+                }
             }
-            catch (NumberFormatException ex) {
-                return false;
-            }
-        }
         }
         catch (NullPointerException ex) {return false;}
         return false;
@@ -55,7 +53,7 @@ public class TemplateParser {
                 Title currentTitle = new Title(0, DocBase.getText(p), DocBase.getAttributes(p));
                 titles.add(currentTitle);
             }
-            }
+        }
         return titles;
     }
 

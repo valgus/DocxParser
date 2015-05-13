@@ -89,8 +89,9 @@ public class ProcessorOfTitles {
         }
         findType();
         findAgreementsAndApprove();
+        findNameOfCompany();
         if (agreementIndexes[0] != -1) {
-            findNameOfCompany();
+
             setSubscribes();
         }
         setDocNumber();
@@ -110,22 +111,18 @@ public class ProcessorOfTitles {
                 indexes.add(i);
                 return indexes;
             }
-            else {
-                if (name.toLowerCase().contains(s.toLowerCase()) ||
-                        DocxMethods.ngrammPossibility(name, s) >=0.3) {
-                    indexes.add(i);
-                    indexes.addAll(findName(i));
-                    return indexes;
-                }else
-                if (DocxMethods.ngrammPossibility(name, s) >= 0.5) {
-                    indexes.add(i);
-                    return indexes;
-                }
+            else if (DocxMethods.ngrammPossibility(name, s) >= 0.7) {
+                indexes.add(i);
+                return indexes;
+            }
+                else if (name.toLowerCase().contains(s.toLowerCase()) ||
+                    DocxMethods.ngrammPossibility(name, s) >=0.3) {
+                indexes.add(i);
+                //    indexes.addAll(findName(i+1));
             }
 
-
         }
-        return null;
+        return indexes;
     }
 
     private void findType () {
@@ -164,7 +161,8 @@ public class ProcessorOfTitles {
     private void findNameOfCompany () {
         String s;
         StringBuffer name = new StringBuffer();
-        for (int i = 0; i < agreementIndexes[0]; i++) {
+        int to = (agreementIndexes[0]==-1)? indexName.get(0) : agreementIndexes[0];
+        for (int i = 0; i < to; i++) {
             s = DocBase.getText(firstPage.get(i));
             name.append(s);
             name.append(" ");

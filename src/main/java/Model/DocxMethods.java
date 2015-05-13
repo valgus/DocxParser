@@ -232,6 +232,8 @@ public final class DocxMethods {
     public static double ngrammPossibility (String actual, String checked) {
         if (actual.length() < 3 || checked.length() < 3)
             return (actual.equals(checked))?1:0;
+        actual = actual.toLowerCase().trim().replaceAll(" +", "");
+        checked = checked.toLowerCase().trim().replaceAll(" +", "");
         String[] actualGramm  = new String[actual.length() - 2];
         String[] checkedGramm  = new String[checked.length() - 2];
         int index = 0;
@@ -255,13 +257,21 @@ public final class DocxMethods {
 
         double coincidence = 0.0;
         index = 0;
-        int max = (checkedGramm.length>actualGramm.length)? actualGramm.length :checkedGramm.length;
+//        int max = (checkedGramm.length>actualGramm.length)? actualGramm.length :checkedGramm.length;
+        int max = actualGramm.length;
         while (index != max) {
-            if (checkedGramm[index].equals(actualGramm[index]))
+            if (checked.contains(actualGramm[index]))
                 coincidence++;
             ++index;
         }
-        return coincidence/max;
+        index = 0;
+        int max2 = checkedGramm.length;
+        while (index != max2) {
+            if (actual.contains(checkedGramm[index]))
+                coincidence++;
+            ++index;
+        }
+        return coincidence/(max+max2);
     }
 
 }

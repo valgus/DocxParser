@@ -21,10 +21,18 @@ public final class DocBase {
                                  boolean setBold) {
 
         String text = getText(p);
+        p.getContent().clear();
+        Text t = factory.createText();
+        t.setValue(text);
+        R run = factory.createR();
+        run.getContent().add(t);
+        run.setRPr(factory.createRPr());
+        p.getContent().add(run);
+        PPr pPr = factory.createPPr();
+        ParaRPr rpr = factory.createParaRPr();
+        pPr.setRPr(rpr);
+        p.setPPr(pPr);
         if (text == null || text == "") return;
-        if (p.getPPr() == null)
-            p.setPPr(factory.createPPr());
-        p.getPPr().setRPr(new ParaRPr());
 
         if (fontSize != null && !fontSize.isEmpty()) {
             setSize(p, fontSize);
@@ -39,15 +47,16 @@ public final class DocBase {
         if (align != null) {
             setAlign(p, align);
         }
-        if (level!= -1 && id!= -1) {
-            setNumberedParagraph(p, id, level);
-        }
+
 
         if (setBold) {
             setBold(p, true);
         }
         if (style != null && !style.isEmpty()) {
             setStyle(p, style);
+        }
+        if (level!= -1 && id!= -1) {
+            setNumberedParagraph(p, id, level);
         }
 
     }
@@ -97,19 +106,6 @@ public final class DocBase {
 
     private static void setStyle(P p, String number) {
         if (number == null) return;
-
-        String text = getText(p);
-        p.getContent().clear();
-        Text t = factory.createText();
-        t.setValue(text);
-        R run = factory.createR();
-        run.getContent().add(t);
-        run.setRPr(factory.createRPr());
-        p.getContent().add(run);
-        PPr pPr = factory.createPPr();
-        ParaRPr rpr = factory.createParaRPr();
-        pPr.setRPr(rpr);
-        p.setPPr(pPr);
 
         PPrBase.PStyle style = new PPrBase.PStyle();
         style.setVal(number);
@@ -481,6 +477,10 @@ public final class DocBase {
     }
 
     public static void deleteTabsInParagraph (P p) {
+        if (p.getPPr() == null)
+            return;
+        if (p.getPPr().getInd() != null)
+            p.getPPr().setInd(null);
         List<Object> content = p.getContent();
         for (Object o : content) {
             if (o instanceof R.Tab) {

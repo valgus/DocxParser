@@ -1,23 +1,25 @@
 package Model;
 
+import org.docx4j.XmlUtils;
+import org.docx4j.dml.wordprocessingDrawing.Anchor;
 import org.docx4j.jaxb.Context;
-import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
-import org.docx4j.openpackaging.parts.Part;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
-import org.docx4j.openpackaging.parts.WordprocessingML.StyleDefinitionsPart;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.*;
 
 import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
 import javax.xml.namespace.QName;
 import java.io.File;
 import java.math.BigInteger;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 public class MainPart {
+
+    Document doc;
+    public MainPart(Document doc){
+        this.doc = doc;
+    }
 
     File template, compared;
     ObjectFactory factory = Context.getWmlObjectFactory();
@@ -38,96 +40,55 @@ public class MainPart {
         //set Pade margins and size
         DocxMethods.setPageMargins(document);
         //delete contents of header and footer
-        document = DocxMethods.cleanHeaderFooter(document);
         List<Title> titles = TemplateParser.getListOfTitles(template.getAbsolutePath());
         List<Object> documentParagraphes = DocxMethods.getAllElementFromObject(document.getMainDocumentPart(), P.class);
+        int from = 0;
+        for (int i =0; i < documentParagraphes.size(); i++) {
+            if (DocBase.getText((P)documentParagraphes.get(i)).matches(" *[«“\"]?[ПЭТОАБИ]{1}[12]?[»”\"]? *"))
+                from = i;
+            if (DocBase.getText((P)documentParagraphes.get(i)).matches(" *[0-9]{4} *") ||
+                    DocBase.getText((P)documentParagraphes.get(i)).equals("ДАТА"))
+                from = i;
+        }
+        documentParagraphes = documentParagraphes.subList(from, documentParagraphes.size()-1);
         TreeMap<Integer, P> corespondences = new TreeMap<>();
+        boolean hasAnnotation = false;
+        boolean empty = true;
         for (int index = 0; index < documentParagraphes.size(); index++) {
             P p = (P)documentParagraphes.get(index);
             List<Object> contents = DocxMethods.getAllElementFromObject(p, FldChar.class);
-            if (contents.size() > 1)
-            {
-                document.getMainDocumentPart().getContent().remove(p);
-                System.out.println(
-                        ((javax.xml.bind.JAXBElement)((FldChar) contents.get(0)).getParent()).getName().getLocalPart());
+            List<Object> textOCntents = DocxMethods.getAllElementFromObject(p, Text.class);
+            if (contents.size() >= 1 ) {
+                boolean remove = true;
+                for (Object text : textOCntents  ) {
+                    if (((Text)text).getValue().contains("Рисунок") || ((Text)text).getValue().contains("Рис") ||
+                            ((Text)text).getValue().contains("Иллюстрация")) {
+                        remove = false;
+                        break;
+                    }
+                }
+                if (remove)document.getMainDocumentPart().getContent().remove(p);
             }
-
-            String s = DocBase.getText(p);
-            if (s.toLowerCase().equals("аннотация") || DocxMethods.ngrammPossibility("аннотация",s) > 0.8)
-                corespondences.put(index, p);
-            if (s.toLowerCase().equals("список сокращений") ||
-                    DocxMethods.ngrammPossibility("список сокращений",s) > 0.8)
-                corespondences.put(index, p);
-            if (s.toLowerCase().contains("приложени") && s.length() < 15) {
-                corespondences.put(index, p);
+            if (!DocBase.getText(p).equals("")) {
+                empty = false;
             }
+            else {
+                List<Object> drawingContent = DocxMethods.getAllElementFromObject(p, Drawing.class);
+                if (drawingContent.size()==0)
+                    document.getMainDocumentPart().getContent().remove(p);
+            }
+        }
+        if (empty) {
+            sendIndfo("Docx is empty");
+            return null;
         }
         corespondences.putAll(findCorespondences(document, documentParagraphes, titles));
         if (corespondences.size() < titles.size()/2) {
             sendIndfo("Файл не соответствует шаблону!");
             return null;
         }
-        int indexOfTableOfContent = -1;
-        Collection<P> values = corespondences.values();
-        Iterator it = values.iterator();
-        P p;Title t;
-        if (it.hasNext()) {
-            do{
-                p = (P)it.next();
-                //  DocBase.setSpacing(p, 360);
-                if (indexOfTableOfContent==-1) {
-                    if (DocxMethods.ngrammPossibility("аннотация",DocBase.getText(p)) < 0.4)
-                        indexOfTableOfContent = DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(), p);
-                }
-                t = findTitle(titles, p);
-                if (t!=null) {
-                    DocBase.setText(p, t.getName(), true);
-                    String[] atr = DocBase.getAttributes(t);
-                    //     P previousP = DocBase.makePageBr();
-                    //     document.getMainDocumentPart().getContent().add(i-1, previousP);
-                    DocBase.setText(p, t.getName(), true);
-                    String s = "LEFT";
-                    String size = "28";
-                    if (atr[0].equals("1")) {
-                        DocBase.setText(p, DocBase.getText(p).toUpperCase(), true);
-                        size = "32";
-
-                        DocBase.setStyle(p, size, "Times New Roman", null, 0, 1, 0, s, true);
-                    }
-                    else {
-                        DocBase.setStyle(p, size, "Times New Roman", null, 1, 1, 0, s, true);
-                    }
-                    DocBase.setHighlight(p, "green");
-                }
-                else {
-                    DocBase.setStyle(p, "32", "Times New Roman", null, -1, -1, 0, "LEFT", true);
-                }
-
-
-            } while (it.hasNext());
-        }
-
-        for (Object o : documentParagraphes) {   //setAttributes
-            p = (P) o;
-            if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null) {
-                DocBase.deleteTabsInParagraph(p);
-                DocBase.addTab(p);
-                DocBase.setStyle(p, "24","Times New Roman", null, -1, -1, 0, "LEFT", false);
-            }
-        }
-
-        setEnumeration(documentParagraphes.subList(indexOfTableOfContent, documentParagraphes.size()-1));
-        for (Object o : documentParagraphes) {
-            p = (P) o;
-            if (DocBase.getHighlight(p)!=null) {
-                DocBase.setHighlight(p, null);
-            }
-        }
-        processImage(document.getMainDocumentPart());
-        //set table of contents
         P paragraphForTOC = factory.createP();
         R r = factory.createR();
-
         FldChar fldchar = factory.createFldChar();
         fldchar.setFldCharType(STFldCharType.BEGIN);
         fldchar.setDirty(true);
@@ -146,9 +107,169 @@ public class MainPart {
         R r2 = factory.createR();
         r2.getContent().add(getWrappedFldChar(fldcharend));
         paragraphForTOC.getContent().add(r2);
-        document.getMainDocumentPart().getContent().add(indexOfTableOfContent-1, DocBase.makePageBr());
-        document.getMainDocumentPart().getContent().add(indexOfTableOfContent,  paragraphForTOC);
-        document.getMainDocumentPart().getContent().add(indexOfTableOfContent+1, DocBase.makePageBr());
+        //        document.getMainDocumentPart().getContent().add(indexOfTableOfContent, DocBase.makePageBr());
+ //       document.getMainDocumentPart().getContent().add(corespondences.firstKey(), DocBase.makePageBr());
+        document.getMainDocumentPart().getContent().add(corespondences.firstKey(),  paragraphForTOC);
+        P content = factory.createP();
+        DocBase.setText(content, "СОДЕРЖАНИЕ", false);
+        DocBase.setStyle(content, "28", "Times New Roman", null, -1, -1, 0, "LEFT", true);
+        document.getMainDocumentPart().getContent().add(corespondences.firstKey(), content);
+        for (int index = 0; index < documentParagraphes.size(); index++) {
+            P p = (P)documentParagraphes.get(index);
+            String s = DocBase.getText(p);
+            if (s.toLowerCase().equals("аннотация") || DocxMethods.ngrammPossibility("аннотация",s) > 0.8) {
+                corespondences.put(index, p);
+                hasAnnotation = true;
+            }
+            if (s.toLowerCase().equals("список сокращений") ||
+                    DocxMethods.ngrammPossibility("список сокращений",s) > 0.8)
+                corespondences.put(index, p);
+            if (s.toLowerCase().contains("приложени") && s.length() < 15) {
+                corespondences.put(index, p);
+            }
+        }
+        int indexOfTableOfContent = -1;
+        Collection<P> values = corespondences.values();
+        Iterator it = values.iterator();
+        P p;Title t;
+        if (it.hasNext()) {
+            do{
+                p = (P)it.next();
+
+                //       List<Object> content = p.getContent();
+//                for (int i =0 ; i < content.size(); i++) {
+//                    if (!(content.get(i) instanceof R))
+//                        content.remove(content.get(i));
+//                }
+                //  DocBase.setSpacing(p, 360);
+                if (indexOfTableOfContent==-1) {
+                    document.getMainDocumentPart().getContent().add(DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(),p),
+                            DocBase.makePageBr());
+                    if (DocxMethods.ngrammPossibility("аннотация",DocBase.getText(p)) < 0.4)
+                        indexOfTableOfContent = DocxMethods.getIndexOfParagraph(document.getMainDocumentPart(), p);
+                    if (doc.isAnnotation() & !hasAnnotation) {
+                        P annotation = factory.createP();
+                        DocBase.setText(annotation, "АННОТАЦИЯ", false);
+                        DocBase.setStyle(annotation, "32", "Times New Roman", null, -1, -1, 0, "LEFT", true);
+                        P explaination = factory.createP();
+                        DocBase.setText(explaination, "Необходимо добавить раздел \"Аннотация\".", false);
+                        document.getMainDocumentPart().getContent().add(corespondences.firstKey()-1, explaination);
+                        document.getMainDocumentPart().getContent().add(corespondences.firstKey()-1, annotation);
+
+                    //    document.getMainDocumentPart().getContent().add(indexOfTableOfContent, DocBase.makePageBr());
+                    }
+                }
+                t = findTitle(titles, p);
+                if (t!=null) {
+                    //      DocBase.setText(p, t.getName(), true);
+                    String[] atr = DocBase.getAttributes(t);
+                    DocBase.setText(p, t.getName(), true);
+                    String s = "LEFT";
+                    String size = "28";
+                    if (atr[0].equals("1")) {
+                        DocBase.setText(p, DocBase.getText(p).toUpperCase(), true);
+                        size = "32";
+                        if (!DocBase.getText(p).toLowerCase().contains("приложен"))
+                            DocBase.setStyle(p, size, "Times New Roman", null, 0, 1, 0, s, true);
+                        else
+                            DocBase.setStyle(p, size, "Times New Roman", null, -1, -1, 0, "RIGHT", true);
+                    }
+                    else {
+                        DocBase.setStyle(p, size, "Times New Roman", null, 1, 1, 0, s, true);
+                    }
+                    DocBase.setHighlight(p, "green");
+                }
+//                else {
+//                    DocBase.setStyle(p, "32", "Times New Roman", null, -1, -1, 0, "LEFT", true);
+//                    DocBase.setHighlight(p, "green");
+//                }
+
+
+            } while (it.hasNext());
+        }
+
+        for (Object o : documentParagraphes) {   //setAttributes
+            p = (P) o;
+            if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null) {
+                DocBase.deleteTabsInParagraph(p);
+                DocBase.addTab(p);
+                DocBase.setStyle(p, "24","Times New Roman", null, -1, -1, 120, "LEFT", false);
+            }
+        }
+        if (hasAnnotation)
+            indexOfTableOfContent+=3;
+        setEnumeration(documentParagraphes.subList(indexOfTableOfContent, documentParagraphes.size()-1));
+        int numEmpty = 0;
+        for (int i = 0; i < documentParagraphes.size(); i++) {
+            p = (P) documentParagraphes.get(i);
+            if (DocBase.getHighlight(p)!=null) {
+                DocBase.setHighlight(p, null);
+            }
+            if (DocBase.getText(p).trim().equals("") ||DocBase.getText(p).trim().isEmpty()) {
+                List<Object> drawingContent = DocxMethods.getAllElementFromObject(p, Drawing.class);
+                if (drawingContent.size()==0) {
+                    document.getMainDocumentPart().getContent().remove(p);
+                if (indexOfTableOfContent > i)
+                    numEmpty ++;
+                }
+            }
+        }
+  //      processImage(document.getMainDocumentPart());
+        //set table of contents
+        indexOfTableOfContent-=numEmpty;
+
+
+
+        boolean findRegistrazuia_izmenenii = false;
+        boolean findSoglasovano = false;
+        boolean findSostavili = false;
+        for (int i = documentParagraphes.size()-1; i > documentParagraphes.size()/2; i--) {
+            P para  = (P) documentParagraphes.get(i);
+            if (DocxMethods.ngrammPossibility(DocBase.getText(para).toLowerCase(), "согласовано") > 0.6)
+                findSoglasovano = true;
+            if (DocxMethods.ngrammPossibility(DocBase.getText(para).toLowerCase(), "составили") > 0.6)
+                findSostavili = true;
+            if (DocxMethods.ngrammPossibility(DocBase.getText(para).toLowerCase(), "лист регистрации изменений") > 0.6)
+                findRegistrazuia_izmenenii = true;
+        }
+        if (!findSostavili && sendIndfo("добавить составили")) {
+            try {
+                document.getMainDocumentPart().addObject(DocBase.makePageBr());
+                P para = factory.createP();
+                DocBase.setText(para, "СОСТАВИЛИ", false);
+                DocBase.setStyle(para, "28", "Times New Roman", null, -1, -1, 0, "CENTER", true);
+                document.getMainDocumentPart().addObject(para);
+                Tbl tbl = (Tbl)XmlUtils.unmarshalString(Models.sostaviliTbl);
+                document.getMainDocumentPart().addObject(tbl);
+            } catch (JAXBException e) {
+                e.printStackTrace();
+            }
+        }
+        if (!findSoglasovano & sendIndfo("добавить согласовано")) {
+            try {
+                P para = factory.createP();
+                DocBase.setText(para, "СОГЛАСОВАНО", false);
+                DocBase.setStyle(para, "28", "Times New Roman", null, -1, -1, 0, "CENTER", true);
+                document.getMainDocumentPart().addObject(para);
+                Tbl tbl = (Tbl)XmlUtils.unmarshalString(Models.soglasovanoTbl);
+                document.getMainDocumentPart().addObject(tbl);
+                document.getMainDocumentPart().addObject(DocBase.makePageBr());
+            } catch (JAXBException e) {
+                e.printStackTrace();
+            }
+        }
+        if (!findRegistrazuia_izmenenii) {
+            try {
+                P para = factory.createP();
+                DocBase.setText(para, "ЛИСТ РЕГИСТРАЦИИ ИЗМЕНЕНИЙ", false);
+                DocBase.setStyle(para, "28", "Times New Roman", null, -1, -1, 0, "CENTER", true);
+                document.getMainDocumentPart().addObject(para);
+                Tbl tbl = (Tbl)XmlUtils.unmarshalString(Models.registrIzm+Models.s2+Models.s3+Models.s4+Models.s5+Models.s6);
+                document.getMainDocumentPart().addObject(tbl);
+            } catch (JAXBException e) {
+                e.printStackTrace();
+            }
+        }
 
         return document;
 
@@ -184,7 +305,8 @@ public class MainPart {
     private Title findTitle (List<Title> t, P p) {
         String name = DocBase.getText(p).toLowerCase();
         for (Title title : t) {
-            if (title.getName().toLowerCase().equals(name)) {
+            if (title.getName().toLowerCase().equals(name)
+                    || DocxMethods.ngrammPossibility(title.getName().toLowerCase(), name.toLowerCase()) >= 0.5) {
                 return title;
             }
         }
@@ -282,10 +404,7 @@ public class MainPart {
                 }
             }
         }
-//        String[] chars = {"а","б","в","д","е","ж","и","к","л","м","н","п","р","с","т","у","ф","х","ц","ч",
-//                "ш","щ","э","ю","я"};
-//        int num = 1;
-//        int charnum = 0;
+
         String character;
         Set<Integer> indexes = data.keySet();
         Iterator it = indexes.iterator();
@@ -343,52 +462,69 @@ public class MainPart {
             Object o = mdp.getContent().get(i);
             contens = DocxMethods.getAllElementFromObject(o, Drawing.class);
             if (contens.size() != 0) {
-                number++;
-                if (i!= 0) o1 = mdp.getContent().get(i-1);
-                if (i != mdp.getContent().size()-1) o2 = mdp.getContent().get(i-1);
-                boolean isName1 = false, isName2 = false;
-                String s = "";
-                if (o1!= null && o1 instanceof P) {
-                    s = DocBase.getText((P)o1);
-                    if (s.toLowerCase().contains("рис") || s.toLowerCase().contains("рисунок")) {
-                        if (!s.toLowerCase().contains("см.")&&!s.toLowerCase().contains("смотри")
-                                &&!s.toLowerCase().contains("котор")&& !s.toLowerCase().contains("(")&&
-                                s.indexOf("(")!= 0)
-                            isName1 = true;
-                    }
-                }
-                if (o2 != null && o2 instanceof P) {
-                    s = DocBase.getText((P)o1);
-                    if (s.toLowerCase().contains("рис") || s.toLowerCase().contains("рисунок") || s.toLowerCase().
-                            contains("Илюстрация") || s.toLowerCase().contains("Граф")) {
-                        if (!s.toLowerCase().contains("см.")&&!s.toLowerCase().contains("смотри")
-                                &&!s.toLowerCase().contains("котор")&& !s.toLowerCase().contains("(")&&
-                                s.indexOf("(")!= 0)
-                            isName2 = true;
-                    }
-                }
-                if (isName1) {
-                    s = DocBase.getText((P)o1);
-                    mdp.getContent().remove(o1);
-                }
-                if (isName1 || isName2) {
-//                    s = s.replaceAll("Рисунок", "");
-//                    s = s.replaceAll("Рис", "");
-//                    s = s.replaceAll("Илюстрация", "");
-//                    s = s.replaceAll("Граф","");
-                    Pattern p = Pattern.compile("\\d [: -\".,=]*");
-                    Matcher m = p.matcher(s);
-                    int lastDigit = m.regionEnd();
-                    String name = s.substring(lastDigit, s.length()-1);
-                    if (isName2) {
-                        if (DocBase.getText((P)o2).matches("Рисунок \\d -[\\s\\S]")) {
-                            break;
+                for (Object content : contens) {
+                    if (content instanceof Drawing) {
+                        List<Object> anchors = ((Drawing) content).getAnchorOrInline();
+                        for (Object anchor : anchors) {
+                            if (anchor instanceof Anchor) {
+                                ((Anchor) anchor).getEffectExtent().setB(0L);
+                                ((Anchor) anchor).getEffectExtent().setT(0L);
+                                ((Anchor) anchor).getEffectExtent().setL(0L);
+                                ((Anchor) anchor).getEffectExtent().setR(0L);
+
+                                ((Anchor) anchor).getExtent().setCx(0L);
+                                ((Anchor) anchor).getExtent().setCy(0L);
+                            }
                         }
                     }
-                    P pWithName = factory.createP();
-                    DocBase.setText(pWithName, "Рисунок" + number +" - "+name, false);
-                    mdp.getContent().add(i+1, createIt());
                 }
+                mdp.getContent().add(i+1, createIt());
+//                number++;
+//                if (i!= 0) o1 = mdp.getContent().get(i-1);
+//                if (i != mdp.getContent().size()-1) o2 = mdp.getContent().get(i-1);
+//                boolean isName1 = false, isName2 = false;
+//                String s = "";
+//                if (o1!= null && o1 instanceof P) {
+//                    s = DocBase.getText((P)o1);
+//                    if (s.toLowerCase().contains("рис") || s.toLowerCase().contains("рисунок")) {
+//                        if (!s.toLowerCase().contains("см.")&&!s.toLowerCase().contains("смотри")
+//                                &&!s.toLowerCase().contains("котор")&& !s.toLowerCase().contains("(")&&
+//                                s.indexOf("(")!= 0)
+//                            isName1 = true;
+//                    }
+//                }
+//                if (o2 != null && o2 instanceof P) {
+//                    s = DocBase.getText((P)o1);
+//                    if (s.toLowerCase().contains("рис") || s.toLowerCase().contains("рисунок") || s.toLowerCase().
+//                            contains("Илюстрация") || s.toLowerCase().contains("Граф")) {
+//                        if (!s.toLowerCase().contains("см.")&&!s.toLowerCase().contains("смотри")
+//                                &&!s.toLowerCase().contains("котор")&& !s.toLowerCase().contains("(")&&
+//                                s.indexOf("(")!= 0)
+//                            isName2 = true;
+//                    }
+//                }
+//                if (isName1) {
+//                    s = DocBase.getText((P)o1);
+//                    mdp.getContent().remove(o1);
+//                }
+//                if (isName1 || isName2) {
+////                    s = s.replaceAll("Рисунок", "");
+////                    s = s.replaceAll("Рис", "");
+////                    s = s.replaceAll("Илюстрация", "");
+////                    s = s.replaceAll("Граф","");
+//                    Pattern p = Pattern.compile("\\d [: -\".,=]*");
+//                    Matcher m = p.matcher(s);
+//                    int lastDigit = m.regionEnd();
+//                    String name = s.substring(lastDigit, s.length()-1);
+//                    if (isName2) {
+//                        if (DocBase.getText((P)o2).matches("Рисунок \\d -[\\s\\S]")) {
+//                            break;
+//                        }
+//                    }
+//                    P pWithName = factory.createP();
+//                    DocBase.setText(pWithName, "Рисунок" + number +" - "+name, false);
+//                    mdp.getContent().add(i+1, createIt());
+//                }
             }
         }
     }
@@ -402,7 +538,7 @@ public class MainPart {
         JAXBElement<org.docx4j.wml.Text> textWrapped = factory
                 .createRT(text);
         r.getContent().add(textWrapped);
-        text.setValue("Figure ");
+        text.setValue("Рисунок ");
         text.setSpace("preserve");
         // Create object for fldSimple (wrapped in JAXBElement)
         CTSimpleField simplefield = factory.createCTSimpleField();
@@ -482,4 +618,5 @@ public class MainPart {
 
         return p;
     }
+
 }

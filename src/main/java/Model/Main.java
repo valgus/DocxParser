@@ -18,7 +18,7 @@
 //            word = editingFirstPages.process();
 //            System.out.println(word.getMainDocumentPart().getContent().size());
 //
-//            word.save(new File("2.docx"));
+//            word.save(new File("test_tech_zadanie.docx"));
 //            CoverPageSectPrMover.process(word);
 //            ParagraphStylesInTableFix.process(word);
 //            DocxToPDFConverter.convert(word);

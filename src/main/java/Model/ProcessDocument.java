@@ -1,12 +1,10 @@
 package Model;
 
-import View2.Controller;
 import org.docx4j.convert.out.common.preprocess.CoverPageSectPrMover;
 import org.docx4j.convert.out.common.preprocess.ParagraphStylesInTableFix;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 
-import javax.swing.text.Style;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.concurrent.BlockingQueue;
@@ -30,10 +28,12 @@ public class ProcessDocument implements Runnable{
         this.sync = sync;
     }
     public void run() {
-        MainPart comparisonWithTemplate = new MainPart();
-        comparisonWithTemplate.setTwoDocx(doc.getTemplate(),file, this);
-        try {
-            messageQueue.put(10);
+        try{
+            MainPart comparisonWithTemplate = new MainPart(doc);
+            messageQueue.put(15);
+            comparisonWithTemplate.setTwoDocx(doc.getTemplate(),file, this);
+
+            messageQueue.put(20);
             WordprocessingMLPackage word;
             try {
                 word = DocxMethods.getTemplate(file.getAbsolutePath());
@@ -44,28 +44,35 @@ public class ProcessDocument implements Runnable{
                 messageQueue.put("rerun process");
                 return;
             }
+            if (word.getMainDocumentPart().getContent().size() == 0) {
+                messageQueue.put("Docx is empty");
+                messageQueue.put("exit");
+                return;
+            }
+            messageQueue.put(30);
             StyleSetter styleSetter = new StyleSetter(word);
             styleSetter.setStyle();
+            EditingFirstPages editingFirstPages = new EditingFirstPages(word, type ,doc.getGost(), name, this);
+            try {
+                word = editingFirstPages.process();
+                messageQueue.put(65);
+            } catch (Exception e) {
+                messageQueue.put("Проблема при обработке документа.");
+                messageQueue.put("exit");
+                return;
+            }
+            if (word == null) {
+                messageQueue.put("exit");
+                return;
+            }
             word = comparisonWithTemplate.setAppropriateText(word);
             if (word == null) {
                 messageQueue.put("exit");
                 return;
             }
-            messageQueue.put(30);
-            EditingFirstPages editingFirstPages = new EditingFirstPages(word, type ,doc.getGost(), name, this);
-            try {
-                word = editingFirstPages.process();
-                messageQueue.put(60);
-            } catch (Exception e) {
-                messageQueue.put("exit");
-                return;
-            }
-            if (word == null) {
-                messageQueue.put("exit");
-                return;
-            }
-            CoverPageSectPrMover.process(word);
             messageQueue.put(80);
+            CoverPageSectPrMover.process(word);
+            messageQueue.put(90);
             ParagraphStylesInTableFix.process(word);
             messageQueue.put(100);
             messageQueue.put(word);
@@ -74,18 +81,16 @@ public class ProcessDocument implements Runnable{
         }
     }
 
-    public boolean sendInfo(String info) {
+    public boolean sendInfo(Object info) {
         try {
-
+            if (info instanceof Integer){
+                messageQueue.put(info);
+                return true;
+            }
             synchronized (sync) {
                 messageQueue.put(info);
                 sync.wait();
             }
-//            boolean is = true;
-//            while (is) {
-//                boolean q = messageQueue2.poll();
-//                is = q;
-//            }
             Boolean res = messageQueue2.poll();
             if (res!= null)
                 return res;

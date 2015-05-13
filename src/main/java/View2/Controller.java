@@ -46,7 +46,6 @@ public class Controller {
     private int gostNumber;
     private String doc;
     private Document document;
-    private Controller controller = this;
     final BlockingQueue<Object> messageQueue = new ArrayBlockingQueue<>(1);
     final BlockingQueue<Boolean> messageQueue2 = new ArrayBlockingQueue<>(1);
     private static double xOffset = 0;
@@ -68,7 +67,7 @@ public class Controller {
             public void handle(ActionEvent actionEvent) {
                 if (doc!= null & !name.getText().equals("Here..") && !name.getText().matches("[ ]*") && file!= null) {
                     //TODO
-                    stillDisabled.setText("Все хорошо!");
+                    stillDisabled.setText("");
                     progress.setVisible(true);
                     procent.setVisible(true);
 
@@ -167,6 +166,7 @@ public class Controller {
     // ************** Event Handlers ****************
 
     @FXML private void loadFile() throws IOException {
+        stillDisabled.setText("");
         file = fileChooser.showOpenDialog(border.getScene().getWindow());
         if (file !=  null) {
             docName.setText(file.getName());
@@ -323,7 +323,7 @@ public class Controller {
             String message, answer_1, answer_2 = null;
             switch (info) {
                 case ("Файл не соответствует шаблону!"):
-                    message = "Загруженный файл не соответствует структуре файла \"" + docName + "\".";
+                    message = "Загруженный файл  \"" + docName.getText() + "\" не соответствует структуре документа.";
                     answer_1 = "Остановить процесс";
                     break;
                 case ("Docx is empty"):
@@ -345,9 +345,18 @@ public class Controller {
                     message = "Введенное название документа некорректно. Процесс завершается.";
                     answer_1 = "ОК";
                     break;
-                default: message = "Произошла внутрисистемная ошибка. Попробовать снова?";
+                case ("добавить составили"):
+                    message = "В файле отсутствует таблица \"Составили\". Добавить данную таблицу?";
                     answer_1 = "Да";
                     answer_2 = "Нет";
+                    break;
+                case ("добавить согласовано"):
+                    message = "В файле отсутствует таблица \"Согласовано\". Добавить данную таблицу?";
+                    answer_1 = "Да";
+                    answer_2 = "Нет";
+                    break;
+                default: message = "Произошла внутрисистемная ошибка. Процесс завершается";
+                    answer_1 = "ОК";
                     break;
             }
                 return answer_1.equals(showErrorMessage(message, answer_1, answer_2));
@@ -400,7 +409,7 @@ public class Controller {
                     String[] cmdArray = {"cmd", "/c", "start", file.getAbsolutePath()};
                     java.lang.Runtime.getRuntime().exec(cmdArray);
                 } catch (Docx4JException e) {
-                    showErrorMessage("Не получилось сохранить в файл" + file.getName() + ".", "ОК", null);
+                    showErrorMessage("Не получилось сохранить в файл " + file.getName() + ".", "ОК", null);
                 } catch (IOException e) {
                     showErrorMessage("Не получается открыть приложение для демонстрации файла.", "ОК", null);
                 }
