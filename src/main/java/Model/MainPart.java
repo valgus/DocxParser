@@ -8,6 +8,7 @@ import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
 import org.docx4j.wml.*;
 
+import javax.swing.text.html.HTMLDocument;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.namespace.QName;
@@ -50,7 +51,7 @@ public class MainPart {
                     DocBase.getText((P)documentParagraphes.get(i)).equals("ДАТА"))
                 from = i;
         }
-        documentParagraphes = documentParagraphes.subList(from, documentParagraphes.size()-1);
+
         TreeMap<Integer, P> corespondences = new TreeMap<>();
         boolean hasAnnotation = false;
         boolean empty = true;
@@ -61,13 +62,20 @@ public class MainPart {
             if (contents.size() >= 1 ) {
                 boolean remove = true;
                 for (Object text : textOCntents  ) {
-                    if (((Text)text).getValue().contains("Рисунок") || ((Text)text).getValue().contains("Рис") ||
-                            ((Text)text).getValue().contains("Иллюстрация")) {
+                    if (((Text)text).getValue().toLowerCase().contains("Рисунок") ||
+                            ((Text)text).getValue().toLowerCase().contains("Рис") ||
+                            ((Text)text).getValue().toLowerCase().contains("Иллюстрация")) {
                         remove = false;
                         break;
                     }
                 }
-                if (remove)document.getMainDocumentPart().getContent().remove(p);
+                if (remove){document.getMainDocumentPart().getContent().remove(p);
+                }
+                if (DocBase.getText(p).toLowerCase().contains("содержани") ||
+                        DocBase.getText(p).toLowerCase().contains("оглавлени")) {
+                    document.getMainDocumentPart().getContent().remove(p);
+                    documentParagraphes.remove(p);
+                }
             }
             if (!DocBase.getText(p).equals("")) {
                 empty = false;
@@ -78,6 +86,7 @@ public class MainPart {
                     document.getMainDocumentPart().getContent().remove(p);
             }
         }
+        documentParagraphes = documentParagraphes.subList(from, documentParagraphes.size()-1);
         if (empty) {
             sendIndfo("Docx is empty");
             return null;
@@ -98,7 +107,7 @@ public class MainPart {
         R r1 = factory.createR();
         Text text = new Text();
         text.setSpace("preserve");
-        text.setValue("TOC \\o \"1-5\" \\h \\z \\u");
+        text.setValue("TOC \\o \"1-3\" \\h \\z \\u");
         r1.getContent().add(factory.createRInstrText(text));
         ptoc.getContent().add(r1);
         FldChar fldcharend =factory.createFldChar();
@@ -148,7 +157,7 @@ public class MainPart {
                         DocBase.setStyle(annotation, "32", "Times New Roman", null, -1, -1, 0, "LEFT", true);
                         P explaination = factory.createP();
                         DocBase.setText(explaination, "Необходимо добавить раздел \"Аннотация\".", false);
-                   //     document.getMainDocumentPart().getContent().add(corespondences.firstKey(), DocBase.makePageBr());
+                        //     document.getMainDocumentPart().getContent().add(corespondences.firstKey(), DocBase.makePageBr());
                         document.getMainDocumentPart().getContent().add(corespondences.firstKey(), explaination);
                         document.getMainDocumentPart().getContent().add(corespondences.firstKey(), annotation);
 
@@ -191,38 +200,53 @@ public class MainPart {
 
             } while (it.hasNext());
         }
+        setEnumeration(documentParagraphes.subList(corespondences.firstKey(), documentParagraphes.size()));
 
         for (Object o : documentParagraphes) {   //setAttributes
             p = (P) o;
-            if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)==null) {
+            if (!DocBase.getText(p).trim().equals("") & DocBase.getHighlight(p)=="") {
                 DocBase.deleteTabsInParagraph(p);
                 DocBase.addTab(p);
                 DocBase.setStyle(p, "24","Times New Roman", null, -1, -1, 120, "LEFT", false);
             }
         }
-        if (hasAnnotation)
-            indexOfTableOfContent+=3;
-        setEnumeration(documentParagraphes.subList(indexOfTableOfContent, documentParagraphes.size()-1));
-        for (int i = 0; i < documentParagraphes.size(); i++) {
-            p = (P) documentParagraphes.get(i);
-            if (DocBase.getHighlight(p)!=null) {
-                DocBase.setHighlight(p, null);
+
+        System.out.println(corespondences.firstKey());
+        System.out.println(documentParagraphes.size() - 1);
+        List<Object> docContents =  document.getMainDocumentPart().getContent();
+        document.getMainDocumentPart().getContent().add(corespondences.firstKey(),  ptoc);
+        document.getMainDocumentPart().getContent().add(corespondences.firstKey(), content);
+        for (int i = 0; i <docContents.size(); i++) {
+            if (docContents.get(i) instanceof P) {
+                p = (P) docContents.get(i);
+                if (DocBase.getHighlight(p)!="") {
+                    DocBase.setHighlight(p, null);
+                }
             }
+        }
+        for (int i = 0; i <documentParagraphes.size(); i++) {
+                p = (P) documentParagraphes.get(i);
+                if (DocBase.getHighlight(p)!="") {
+                    DocBase.setHighlight(p, null);
+                }
             if (DocBase.getText(p).trim().equals("") ||DocBase.getText(p).trim().isEmpty()) {
                 List<Object> drawingContent = DocxMethods.getAllElementFromObject(p, Drawing.class);
-                if (drawingContent.size()==0) {
+                List<Object> brContent = DocxMethods.getAllElementFromObject(p, Br.class);
+                List<Object> fldContent = DocxMethods.getAllElementFromObject(p, FldChar.class);
+
+                if (drawingContent.size()==0 && brContent.size() == 0 && fldContent.size() == 0) {
                     document.getMainDocumentPart().getContent().remove(p);
                 }
             }
         }
-         //     processImage(document.getMainDocumentPart());
+
+        //     processImage(document.getMainDocumentPart());
         //set table of contents
-     //   indexOfTableOfContent-=numEmpty;
+        //   indexOfTableOfContent-=numEmpty;
 
 
-        document.getMainDocumentPart().getContent().add(corespondences.firstKey(),  ptoc);
-        document.getMainDocumentPart().getContent().add(corespondences.firstKey(), content);
-     //   document.getMainDocumentPart().getContent().add(corespondences.firstKey(), DocBase.makePageBr());
+
+        //   document.getMainDocumentPart().getContent().add(corespondences.firstKey(), DocBase.makePageBr());
 
         boolean findRegistrazuia_izmenenii = false;
         boolean findSoglasovano = false;
@@ -236,8 +260,10 @@ public class MainPart {
             if (DocxMethods.ngrammPossibility(DocBase.getText(para).toLowerCase(), "лист регистрации изменений") > 0.6)
                 findRegistrazuia_izmenenii = true;
         }
+        boolean set = false;
         if (!findSostavili && sendIndfo("добавить составили")) {
             try {
+                set = true;
                 document.getMainDocumentPart().addObject(DocBase.makePageBr());
                 P para = factory.createP();
                 DocBase.setText(para, "СОСТАВИЛИ", false);
@@ -251,19 +277,21 @@ public class MainPart {
         }
         if (!findSoglasovano & sendIndfo("добавить согласовано")) {
             try {
+                if (!set)
+                    document.getMainDocumentPart().addObject(DocBase.makePageBr());
                 P para = factory.createP();
                 DocBase.setText(para, "СОГЛАСОВАНО", false);
                 DocBase.setStyle(para, "28", "Times New Roman", null, -1, -1, 0, "CENTER", true);
                 document.getMainDocumentPart().addObject(para);
                 Tbl tbl = (Tbl)XmlUtils.unmarshalString(Models.soglasovanoTbl);
                 document.getMainDocumentPart().addObject(tbl);
-                document.getMainDocumentPart().addObject(DocBase.makePageBr());
             } catch (JAXBException e) {
                 e.printStackTrace();
             }
         }
         if (!findRegistrazuia_izmenenii) {
             try {
+                document.getMainDocumentPart().addObject(DocBase.makePageBr());
                 P para = factory.createP();
                 DocBase.setText(para, "ЛИСТ РЕГИСТРАЦИИ ИЗМЕНЕНИЙ", false);
                 DocBase.setStyle(para, "28", "Times New Roman", null, -1, -1, 0, "CENTER", true);
@@ -279,12 +307,41 @@ public class MainPart {
 
     }
 
-    private TreeMap<Integer, P> findCorespondences(WordprocessingMLPackage wordprocessingMLPackage,List<Object> document, List<Title> titles) {
+    private TreeMap<Integer, P> findCorespondences(WordprocessingMLPackage word, List<Object> document, List<Title> titles) {
         TreeMap<Integer, P> check = new TreeMap<>();
+        List<Title> titleToAdd = new ArrayList<>();
+        List<P> pToAdd = new ArrayList<>();
+        int previous;
         for (int i = 0; i< titles.size(); i++) {
             P p = findP(document, titles.get(i).getName());
             if (p != null) {
-                check.put(DocxMethods.getIndexOfParagraph(wordprocessingMLPackage.getMainDocumentPart(), p), p);
+                previous = DocxMethods.getIndexOfParagraph(word.getMainDocumentPart(), p);
+                check.put(previous, p);
+                if (titleToAdd.size()>0) {
+                    for (int j = titleToAdd.size()-1; j >=0; j--) {
+                        word.getMainDocumentPart().getContent().addAll(previous, titleToAdd.get(j).getDescription());
+                        P para = factory.createP();
+                        DocBase.setText(para, titleToAdd.get(j).getName(), false);
+                        word.getMainDocumentPart().getContent().add(previous, para);
+                        pToAdd.add(para);
+                    }
+                    for (int j = 0; j < pToAdd.size(); j++) {
+                        check.put(DocxMethods.getIndexOfParagraph(word.getMainDocumentPart(), pToAdd.get(j)),
+                                pToAdd.get(j));
+                    }
+                    titleToAdd.clear();
+                    pToAdd.clear();
+                    previous = DocxMethods.getIndexOfParagraph(word.getMainDocumentPart(), p);
+                    check.put(previous, p);
+                }
+            }
+            else {
+                Boolean add = null;
+                if (doc.isMerge())
+                    add = sendIndfo("Добавить раздел \"" + titles.get(i).getName() + "\"?");
+                if (add == null || add.equals(true)) {
+                    titleToAdd.add(titles.get(i));
+                }
             }
         }
         return check;
@@ -331,7 +388,8 @@ public class MainPart {
             P p = (P)documentParagraphes.get(i);
             currentLevel = DocBase.getLevelInList(p).intValue();
             currentNumId = DocBase.getNumIDInList(p).intValue();
-            if (DocBase.getHighlight(p) == null && !DocBase.getText(p).isEmpty()){
+            if (DocBase.getHighlight(p) == "" && !DocBase.getText(p).isEmpty()){
+                System.out.println(DocBase.getText(p));
                 if (currentLevel!= -1 && currentNumId!=-1) {
                     if (data.size()==0) {
                         data.put(i, 1);
@@ -405,24 +463,43 @@ public class MainPart {
                             }
                         }
                     }
+                    else {
+                        String s = DocBase.getText(p);
+                        if (s.matches("([0-9]{1,3}[. ]{1})}{2} *[\\d\\D]*")) {
+                            DocBase.setStyle(p, null, null, "2", 1, 1, 0, null, false);
+                            DocBase.setHighlight(p, "yellow");
+                        }
+                        if (s.matches("([0-9]{1,3}[. ]{1})}{3} *[\\d\\D]*")) {
+                            DocBase.setStyle(p, null, null, "3", 2, 1, 0, null, false);
+                            DocBase.setHighlight(p, "yellow");
+                        }
+                    }
                 }
             }
         }
 
         String character;
+        data.put(Integer.MAX_VALUE, Integer.MAX_VALUE);
         Set<Integer> indexes = data.keySet();
         Iterator it = indexes.iterator();
         Integer previous = null;
-        Integer next = null;
+        Integer next;
+        int index = 0;
+        if (it.hasNext())
+            index = (int)it.next();
         while (it.hasNext()) {
-            int index = (int)it.next();
             if (index!= indexes.size()-1)
-                next = index+1;
+                next = (int)it.next();
+            else {
+                next = null;
+            }
             P p = (P)documentParagraphes.get(index);
             DocBase.removeEnum(p);
             if (previous!= null) {
                 if (next!= null && next-1 != index && previous+1 != index) {
-                    DocBase.setNumberedParagraph(p, 1, 2);
+                    DocBase.setNumberedParagraph(p, 1, 1);
+                    DocBase.setStyle(p, null, null, "2", 1, 1, 0, null, false);
+                    DocBase.setHighlight(p, "yellow");
                 }
                 else {
                     if (data.get(previous) == data.get(index) && previous + 1 == index)
@@ -438,22 +515,61 @@ public class MainPart {
                         DocBase.setText((P)documentParagraphes.get(previous), s, true);
                     }
                     DocBase.setText((P)documentParagraphes.get(previous), character, false);
+                    if (data.get(index) == 1) {
+                        s = DocBase.getText(p);
+                        s = s.substring(0, 1).toLowerCase() + s.substring(1, s.length());
+                        DocBase.setText(p, s, true);
+                        DocBase.setStyle(p, null, null, "5", 3, 1, 0, null, false);
+                        DocBase.setHighlight(p, "yellow");
+                    }
+                    else {
+                        s = DocBase.getText(p);
+                        s = s.substring(0, 1).toLowerCase() + s.substring(1, s.length());
+                        DocBase.setText(p, s, true);
+                        DocBase.setStyle(p, null, null, "5", 4, 1, 0, null, false);
+                        DocBase.setHighlight(p, "yellow");
+                    }
                 }
             }
             else {
                 if (next!= null && next-1 != index) {
-                    DocBase.setNumberedParagraph(p, 1, 2);
+                    DocBase.setStyle(p, null, null, "2", 1, 1, 0, null, false);
+                    DocBase.setHighlight(p, "yellow");
+
+                }
+                else {
+                    if (data.get(previous) == data.get(index) && previous + 1 == index)
+                        character = ";";
+                    else if (previous + 1 < index || data.get(previous) < data.get(index)){
+                        character = ".";
+                    }
+                    else
+                        character = ":";
+                    String s = DocBase.getText((P)documentParagraphes.get(previous)).trim();
+                    if (s.endsWith(";")||s.endsWith(".")||s.endsWith(":")) {
+                        s = s.substring(0, s.length()-1);
+                        DocBase.setText((P)documentParagraphes.get(previous), s, true);
+                    }
+                    DocBase.setText((P)documentParagraphes.get(previous), character, false);
+                    if (data.get(index) == 1) {
+                        s = DocBase.getText(p);
+                        s = s.substring(0, 1).toLowerCase() + s.substring(1, s.length());
+                        DocBase.setText(p, s, true);
+                        DocBase.setStyle(p, null, null, "5", 3, 1, 0, null, false);
+                        DocBase.setHighlight(p, "yellow");
+                    }
+                    else {
+                        s = DocBase.getText(p);
+                        s = s.substring(0, 1).toLowerCase() + s.substring(1, s.length());
+                        DocBase.setText(p, s, true);
+                        DocBase.setStyle(p, null, null, "5", 4, 1, 0, null, false);
+                        DocBase.setHighlight(p, "yellow");
+                    }
                 }
             }
-            if (data.get(index) == 1) {
-                DocBase.setNumberedParagraph(p, 1, 3);
-            }
-            else {
-                DocBase.setNumberedParagraph(p, 1, 4);
-            }
+
             previous = index;
-            if (!it.hasNext())
-                DocBase.setText(p, ".", false);
+            index = next;
         }
     }
 

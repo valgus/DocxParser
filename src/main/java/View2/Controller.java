@@ -167,7 +167,9 @@ public class Controller {
 
     @FXML private void loadFile() throws IOException {
         stillDisabled.setText("");
-        file = fileChooser.showOpenDialog(border.getScene().getWindow());
+        File f = fileChooser.showOpenDialog(border.getScene().getWindow());
+        if (file== null || f != null)
+            file = f;
         if (file !=  null) {
             docName.setText(file.getName());
             docName.setVisible(true);
@@ -358,6 +360,11 @@ public class Controller {
                 default: message = "Произошла внутрисистемная ошибка. Процесс завершается";
                     answer_1 = "ОК";
                     break;
+            }
+            if (info.contains("Добавить раздел")) {
+                message = info;
+                answer_1 = "Да";
+                answer_2 = "Нет";
             }
                 return answer_1.equals(showErrorMessage(message, answer_1, answer_2));
     }

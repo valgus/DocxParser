@@ -43,16 +43,28 @@ public class TemplateParser {
 
     public static List<Title> getListOfTitles (String name) {
         List<Title> titles = new ArrayList<>();
+        P lastTitle = null;
+        int lastTitleIndex = 1;
         setDocument(name);
         List<Object> jaxbNodes = DocxMethods.createParagraphJAXBNodes(template);
-        for (Object jaxbNode : jaxbNodes) {
-            P p = (P)jaxbNode;
+        for (int i = 0; i < jaxbNodes.size(); i++) {
+            P p = (P)jaxbNodes.get(i);
             if (isTitle(p) && !DocBase.getText(p).equals("") ||
                     DocBase.getText(p).toLowerCase().equals("приложение") ||
                     DocBase.getText(p).toLowerCase().equals("приложения")  ) {
                 Title currentTitle = new Title(0, DocBase.getText(p), DocBase.getAttributes(p));
+                if (lastTitle!=null) {
+                    titles.get(titles.size()-1).setDescription(jaxbNodes.subList(lastTitleIndex+1, i));
+                }
+                lastTitle = p;
+                lastTitleIndex = i;
                 titles.add(currentTitle);
             }
+        }
+        if (lastTitleIndex!= jaxbNodes.size()-1)
+            titles.get(titles.size()-1).setDescription(jaxbNodes.subList(lastTitleIndex+1, jaxbNodes.size()-1));
+        for (Title title : titles) {
+            DocBase.deleteEmptyPara(title.getDescription());
         }
         return titles;
     }

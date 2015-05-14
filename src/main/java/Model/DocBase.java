@@ -2,14 +2,8 @@ package Model;
 
 import org.apache.commons.lang.StringUtils;
 import org.docx4j.jaxb.Context;
-import org.docx4j.openpackaging.exceptions.Docx4JException;
-import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.wml.*;
-
-import javax.xml.bind.JAXBElement;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -473,7 +467,17 @@ public final class DocBase {
 
     public static void addTab (P p) {
         List<Object> contents = p.getContent();
-        contents.add(0, factory.createRTab());
+        R.Tab tab = factory.createRTab();
+        for (Object o : contents) {
+            if (o instanceof R) {
+                ((R) o).getContent().add(0, tab);
+            }
+        }
+        if (p.getPPr() == null)
+            p.setPPr(factory.createPPr());
+        PPrBase.Ind ind = factory.createPPrBaseInd();
+        ind.setLeft(BigInteger.valueOf(840));
+        p.getPPr().setInd(ind);
     }
 
     public static void deleteTabsInParagraph (P p) {
@@ -482,11 +486,11 @@ public final class DocBase {
         if (p.getPPr().getInd() != null)
             p.getPPr().setInd(null);
         List<Object> content = p.getContent();
-        for (Object o : content) {
-            if (o instanceof R.Tab) {
-                content.remove(o);
-            }
-        }
+//        for (Object o : content) {
+//            if (o instanceof R.Tab) {
+//                content.remove(o);
+//            }
+//        }
     }
 
     public static void setNumberedParagraph(P p, long numId, long ilvl) {

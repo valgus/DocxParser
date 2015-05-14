@@ -6,6 +6,7 @@ import org.docx4j.jaxb.Context;
 import org.docx4j.model.structure.PageDimensions;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.wml.*;
 
 import java.io.File;
@@ -17,6 +18,7 @@ import java.util.List;
 public class EditingFirstPages {
 
     private    WordprocessingMLPackage doc;
+    private Tbl tbl;
     private  ObjectFactory factory;
     private int numGOST;
     String type;
@@ -60,8 +62,8 @@ public class EditingFirstPages {
         subName = "Наименование документа";
         company = "Наименование министерства или ведомства, " +
                 "в систему которого входит организация, разработавшая данный документ";
-        agreement = "СОГЛАСОВАНО \n (подпись) \t ФИО \n дата";
-        approve = "УТВЕРЖДАЮ \n (подпись) \t ФИО \n дата";
+        agreement = "СОГЛАСОВАНО \n должность \n (подпись) \t ФИО \n дата";
+        approve = "УТВЕРЖДАЮ \n должность \n (подпись) \t ФИО \n дата";
     }
 
     public WordprocessingMLPackage process()throws Exception{
@@ -69,6 +71,7 @@ public class EditingFirstPages {
             sendIndfo("Docx is empty");
             return null;
         }
+        P first = null;
         CoverPageSectPrMover.process(doc);
         List<P> docPara = DocBase.deleteEmptyPara(DocxMethods.createParagraphJAXBNodes(doc));
         String s;
@@ -78,6 +81,7 @@ public class EditingFirstPages {
             if (s.replace("г.", "").matches("[0-9]{4}")) {
                 year = s;
                 yearIndex = i;
+                first = docPara.get(i);
                 if (letterIndex != -1)
                     break;
             }
@@ -85,6 +89,7 @@ public class EditingFirstPages {
             if (k.matches("[«“\"]?[ПЭТОАБИ]{1}[12]?[»”\"]?")) {
                 letter = s;
                 letterIndex = i;
+                first = docPara.get(i);
                 if (yearIndex != -1)
                     break;
             }
@@ -96,20 +101,22 @@ public class EditingFirstPages {
             boolean is = sendIndfo("year or letter must be set");
             if (is) {
                 year = "ДАТА";
-                yearIndex = 0;
-
+                setFirstPage();
+                setSecondPage();
+                return doc;
             }
             else {
                 return null;
             }
         }
+        String res = "";
         if (yearIndex != -1 && letterIndex != -1)
             if (letterIndex - yearIndex == 2)
                 changeString = DocBase.getText(docPara.get(letterIndex - yearIndex));
         if (yearIndex!= 0 &&  yearIndex!= -1  || letterIndex != -1) {
             ProcessorOfTitles a = new ProcessorOfTitles(docPara.subList(0, (yearIndex!= -1)?yearIndex : letterIndex),
                     type, numGOST, name, process);
-            String res = a.findMainElements();
+             res = a.findMainElements();
             if (res == null) {
                 if (!a.getPageNumber().equals("")) nPages = a.getPageNumber();
                 if (!a.getMedium().equals("")) medium = a.getMedium();
@@ -137,39 +144,51 @@ public class EditingFirstPages {
             int page2index = -1;
             int nLetter = -1;
             int temp = ((letterIndex != -1) ? letterIndex : yearIndex  ) + 1;
+            P last = null;
             for (int i = temp; i < ((4*temp <docPara.size())?4*temp:docPara.size()); i++) {
                 s = DocBase.getText(docPara.get(i));
                 if (s.equals(year)) {
                     year2Index = i;
-                    break;
+                    last = docPara.get(i);
                 }
                 if ((s.toLowerCase().contains("листов")||s.toLowerCase().contains("лист")) && s.length() < 15) {
                     page2index = i;
                     nPages2 = s;
+                    last = docPara.get(i);
                 }
 
                 if (s.toLowerCase().contains(letter.trim())||
                         s.contains("\"") && s.replaceAll("\"", "").trim().matches("[ПЭТОАБИ]{1}[12]?")) {
                     nLetter = i;
+                    last = docPara.get(i);
+                    break;
                 }
             }
+
             int indexToFind = (nLetter == -1)?(year2Index == -1)? (page2index == -1)?temp+1 :page2index : year2Index
                     :nLetter;
-            int k = 0;
-            int l = 0;
-            if (DocBase.getText((P)doc.getMainDocumentPart().getContent().get(indexToFind+1)).contains("\"")
-                    ||DocBase.getText((P)doc.getMainDocumentPart().getContent().get(indexToFind+1)).contains("«") ||
-                    DocBase.getText((P)doc.getMainDocumentPart().getContent().get(indexToFind+1)).contains("“")) {
-                indexToFind+=2;
-            }
-            else
-                indexToFind+=1;
-            while (k!=indexToFind+1) {
-                if (!StringUtils.deleteWhitespace(DocBase.getText((P)doc.getMainDocumentPart().getContent().get(l))).
-                        equals(""))
-                    k++;
-                DocBase.setHighlight((P)doc.getMainDocumentPart().getContent().get(l), "blue");
-                l++;
+
+            boolean[] inTable = getParagraphesFromTbl(first, last);
+            if (inTable[0] == true)
+                indexToFind-=DocxMethods.getIndexOfParagraph(doc.getMainDocumentPart(), first);
+            if (inTable[1] == false)  {
+
+                int k = 0;
+                int l = 0;
+                if (DocBase.getText((P)doc.getMainDocumentPart().getContent().get(indexToFind+1)).contains("\"")
+                        ||DocBase.getText((P)doc.getMainDocumentPart().getContent().get(indexToFind+1)).contains("«") ||
+                        DocBase.getText((P)doc.getMainDocumentPart().getContent().get(indexToFind+1)).contains("“")) {
+                    indexToFind+=2;
+                }
+                else
+                    indexToFind+=1;
+                while (k!=indexToFind) {
+                    if (!StringUtils.deleteWhitespace(DocBase.getText((P)doc.getMainDocumentPart().getContent().get(l))).
+                            equals(""))
+                        k++;
+                    DocBase.setHighlight((P)doc.getMainDocumentPart().getContent().get(l), "blue");
+                    l++;
+                }
             }
             while (true) {
                 if (doc.getMainDocumentPart().getContent().get(indexToFind+1) instanceof P) {
@@ -185,9 +204,8 @@ public class EditingFirstPages {
                     break;
             }
         }
-        setFirstPage();
+        if (res.equals("Создать пустой лист утверждения")) setFirstPage();
         setSecondPage();
-        //TODO calculate number of pages
 
    //     System.out.println(doc.getMainDocumentPart().getContent().size());
 
@@ -359,7 +377,7 @@ public class EditingFirstPages {
         cellMar.setTop(width2);
 
         P[] pr1 = {setP("УТВЕРЖДЕНО", "Times New Roman", null, -1, -1, 480, null, null, false, false),
-                setP(docNumber.replace("{wrong}","").replace("-ЛУ",""), "Courier New", null, -1, -1, 240, "LEFT", "20", false, false),
+                setP(docNumber.replace("{wrong}",""), "Courier New", null, -1, -1, 240, "LEFT", "20", false, false),
         };
 
         P[] pr = {setP("", "Times New Roman", null, -1, -1, 240, null, null, false, false),
@@ -386,7 +404,7 @@ public class EditingFirstPages {
         pr3[i] = setP("", "Arial", null, -1, -1, 360, "CENTER", "20", false, false);i++;
             pr3[i] = setP(nPages2, "Arial",null, -1, -1, 360, "CENTER", "28", nPages2.equals("Листов ___"), true);
         table.getContent().add(addRowWithMergedCells(false, null, pr3, null, 0, (int)(0.9*pageWidth), 0, 2));
-        int num = 27;
+        int num = 26;
         if (albom!= null && !albom.isEmpty() && !albom.equals(""))
             num-=3;
         if (name.length() > 50 & name.length() <=75)
@@ -583,6 +601,52 @@ public class EditingFirstPages {
             sendIndfo(e.getMessage());
         }
 
+    }
+
+    private boolean[] getParagraphesFromTbl (P content, P content2) {
+        boolean[] inTable = {false, false};
+        List<Object> paragraphes = new ArrayList<>();
+        MainDocumentPart main =  doc.getMainDocumentPart();
+        for (int i = 0; i <main.getContent().size(); i++) {
+            if (main.getContent().get(i) instanceof Tbl) {
+                Tbl tbl = (Tbl)main.getContent().get(i);
+                List<Object> contents = tbl.getContent();
+                for (Object o : contents) {
+                    if (o instanceof  P) {
+                        if (o.equals(content)){
+                            inTable[0] = true;
+                            paragraphes = DocxMethods.getAllElementFromObject(tbl, P.class);
+                            main.getContent().remove(tbl);
+                            break;
+                        }
+
+                    }
+                }
+            }
+        }
+        if (content2!= null) {
+            for (int i = 0; i <main.getContent().size(); i++) {
+                if (main.getContent().get(i) instanceof Tbl) {
+                    Tbl tbl = (Tbl)main.getContent().get(i);
+                    List<Object> contents = tbl.getContent();
+                    for (Object o : contents) {
+                        if (o instanceof  P) {
+                            if (o.equals(content2)){
+                                inTable[1] = true;
+                                paragraphes.addAll(DocxMethods.getAllElementFromObject(tbl, P.class));
+                                main.getContent().remove(tbl);
+                                break;
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+//        for (int i = paragraphes.size() - 1; i>=0; i--) {
+//            main.getContent().add(0, paragraphes.get(i));
+//        }
+        return inTable;
     }
 
 }

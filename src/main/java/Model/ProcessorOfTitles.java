@@ -1,5 +1,6 @@
 package Model;
 
+import org.apache.poi.ss.formula.functions.Match;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.*;
@@ -68,7 +69,7 @@ public class ProcessorOfTitles {
     }
     String findMainElements() throws Exception{
         String s;
-        String res = null;
+        String res = "";
         for (int i = 0; i < firstPage.size(); i++)  {
             s = DocBase.getText(firstPage.get(i));
             if (s.toLowerCase().equals("лист утверждения") || DocxMethods.ngrammPossibility(s, "лист утверждения") >=0.5 ) {
@@ -80,7 +81,9 @@ public class ProcessorOfTitles {
             boolean is = sendIndfo("Is not the first page!");
             if (is)
                 res =  "Создать пустой лист утверждения";
+            return res;
         }
+        res = "Создать пустой лист утверждения";
         indexName = findName(0);
         if (indexName == null || indexName.size() == 0) {
             sendIndfo("The inserted name is not correct");
@@ -150,7 +153,7 @@ public class ProcessorOfTitles {
                 }
             }
 
-            if (s.toLowerCase().equals("утверждаю")|| DocxMethods.ngrammPossibility("утверждаю", s) >= 0.5) {
+            if (s.toLowerCase().equals("утверждаю")|| DocxMethods.ngrammPossibility("утверждаю", s) >= 0.65) {
             //    DocBase.setHighlight(firstPage.get(i), "yellow");
                 approveIndex = i;
             }
@@ -302,7 +305,17 @@ public class ProcessorOfTitles {
                                 docNumberIndex +1 :
                         pageNumberIndex + 1 :
                 agreementIndexes[1] +1;
-        remained.addAll(firstPage.subList(start, firstPage.size() - 1));
+        Pattern p1 = Pattern.compile(" *[0-9]{4} *");
+        Pattern p2 = Pattern.compile("_+");
+        Pattern p3 = Pattern.compile("[А-Яа-яA-Za-z .]+");
+        Pattern p4 = Pattern.compile("[#№]+");
+        String s;
+       for (int i = start; i < firstPage.size(); i++ ) {
+           s = DocBase.getText(firstPage.get(i));
+           if (!p4.matcher(s).find() && (p1.matcher(s).find() || p2.matcher(s).find() || p3.matcher(s).find())) {
+               remained.add(firstPage.get(i));
+           }
+       }
 
     }
 
