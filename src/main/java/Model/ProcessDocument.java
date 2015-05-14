@@ -4,9 +4,11 @@ import org.docx4j.convert.out.common.preprocess.CoverPageSectPrMover;
 import org.docx4j.convert.out.common.preprocess.ParagraphStylesInTableFix;
 import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.wml.P;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
 public class ProcessDocument implements Runnable{
@@ -52,6 +54,11 @@ public class ProcessDocument implements Runnable{
             messageQueue.put(30);
             StyleSetter styleSetter = new StyleSetter(word);
             styleSetter.setStyle();
+            word = comparisonWithTemplate.setAppropriateText(word);
+            if (word == null) {
+                messageQueue.put("exit");
+                return;
+            }
             EditingFirstPages editingFirstPages = new EditingFirstPages(word, type ,doc.getGost(), name, this);
             try {
                 word = editingFirstPages.process();
@@ -65,10 +72,17 @@ public class ProcessDocument implements Runnable{
                 messageQueue.put("exit");
                 return;
             }
-            word = comparisonWithTemplate.setAppropriateText(word);
-            if (word == null) {
-                messageQueue.put("exit");
-                return;
+            List<Object> contents = word.getMainDocumentPart().getContent();
+            int firstBlue = -1;
+            for (int i = 0; i< contents.size(); i++) {
+                Object content = contents.get(i);
+                if (content instanceof P) {
+                    if (DocBase.getHighlight((P)content).equals("blue")) {
+                        if (firstBlue==-1)
+                            firstBlue = i;
+                        word.getMainDocumentPart().getContent().remove(firstBlue);i--;
+                    }
+                }
             }
             messageQueue.put(80);
             CoverPageSectPrMover.process(word);

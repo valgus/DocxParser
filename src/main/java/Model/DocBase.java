@@ -293,7 +293,7 @@ public final class DocBase {
         try{
             return p.getPPr().getRPr().getHighlight().getVal();
         }
-        catch (NullPointerException ex) {return null;}
+        catch (NullPointerException ex) {return "";}
 
     }
 

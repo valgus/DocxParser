@@ -120,21 +120,20 @@ public class HeaderFooter extends  SectionWrapper{
         return hdr;
     }
 
-    public static SectPr process(WordprocessingMLPackage word, boolean setPageNumber) throws Exception {
+    public static SectPr process(WordprocessingMLPackage word) throws Exception {
         MainDocumentPart mdp = word.getMainDocumentPart();
 
 
         HeaderPart cover_hdr_part = new HeaderPart(new PartName(
                 "/word/cover-header.xml")),
                 content_hdr_part = new HeaderPart(
-                new PartName("/word/content-header.xml"));
+                        new PartName("/word/content-header.xml"));
         word.getParts().put(cover_hdr_part);
         word.getParts().put(content_hdr_part);
         cover_hdr_part.setPackage(word);
         content_hdr_part.setPackage(word);
 
-        Hdr cover_hdr = factory.createHdr();
-        Hdr content_hdr = (setPageNumber)?getHdr():factory.createHdr();
+        Hdr cover_hdr = factory.createHdr(), content_hdr = getHdr();
         P p = factory.createP();
         DocBase.setText(p, "", false);
         cover_hdr.getContent().add(p);
@@ -179,7 +178,7 @@ public class HeaderFooter extends  SectionWrapper{
                 .addTargetPart(content_ftr_part);
 
 
-     //   cover_ftr.getContent().add(makeTable(cover_ftr_part));
+        //   cover_ftr.getContent().add(makeTable(cover_ftr_part));
         content_ftr.getContent().add(makeTable(content_hdr_part));
 
 
@@ -204,12 +203,11 @@ public class HeaderFooter extends  SectionWrapper{
         hdr_ref.setType(HdrFtrRef.FIRST);
         sectPr1.getEGHdrFtrReferences().add(hdr_ref);
 
-        if (setPageNumber) {
         hdr_ref = factory.createHeaderReference();
         hdr_ref.setId(content_hdr_rel.getId());
         hdr_ref.setType(HdrFtrRef.DEFAULT);
         sectPr1.getEGHdrFtrReferences().add(hdr_ref);
-        }
+
         BooleanDefaultTrue boolanDefaultTrue = new BooleanDefaultTrue();
         sectPr1.setTitlePg(boolanDefaultTrue);
 
@@ -221,12 +219,10 @@ public class HeaderFooter extends  SectionWrapper{
         ftr_ref.setId(cover_ftr_rel.getId());
         ftr_ref.setType(HdrFtrRef.FIRST);
         sectPr1.getEGHdrFtrReferences().add(ftr_ref);
-        if (setPageNumber) {
         ftr_ref = factory.createFooterReference();
         ftr_ref.setId(content_ftr_rel.getId());
         ftr_ref.setType(HdrFtrRef.DEFAULT);
         sectPr1.getEGHdrFtrReferences().add(ftr_ref);
-        }
         return sectPr1;
     }
 
@@ -236,7 +232,7 @@ public class HeaderFooter extends  SectionWrapper{
         P p = factory.createP();
         PPr ppr = factory.createPPr();
         p.setPPr(ppr);
-        SectPr sectPr= process(word, true);
+        SectPr sectPr= process(word);
         CTPageNumber pageNumber = sectPr.getPgNumType();
         if (pageNumber==null) {
             pageNumber = Context.getWmlObjectFactory().createCTPageNumber();
